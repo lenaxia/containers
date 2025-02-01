@@ -11,7 +11,7 @@ ENV HOME=/config \
     TRANSMISSION_WEB_HOME=/app/web
 
 #hadolint ignore=DL3018
-RUN apk add --no-cache ca-certificates findutils geoip p7zip python3 bash \
+RUN apk add --no-cache ca-certificates findutils geoip p7zip python3 bash gettext \
     transmission-cli~"${VERSION}" \
     transmission-daemon~"${VERSION}" \
     transmission-remote~"${VERSION}"
