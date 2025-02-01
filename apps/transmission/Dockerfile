@@ -17,7 +17,8 @@ RUN apk add --no-cache ca-certificates findutils geoip p7zip python3 \
     transmission-remote~"${VERSION}"
 
 #hadolint ignore=DL3059
-RUN chown -R root:root /usr/bin/transmission* \
+RUN mkdir -p /app
+    && chown -R root:root /usr/bin/transmission* \
     && chmod -R 755 /usr/bin/transmission* \
     && ln -s /usr/bin/transmission-cli /app/transmission-cli \
     && ln -s /usr/bin/transmission-daemon /app/transmission-daemon \
