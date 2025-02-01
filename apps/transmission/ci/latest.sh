@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-version=$(curl -sX GET "https://repology.org/api/v1/projects/?search=transmission&inrepo=alpine_3_19" | jq -r '.transmission | .[] | select((.repo == "alpine_3_19" and .binname == "transmission-daemon")) | .origversion')
+version=$(curl -s https://pkgs.alpinelinux.org/package/edge/community/x86_64/transmission | grep -oP 'transmission-\K[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -n 1)
 version="${version%%_*}"
 version="${version%%-*}"
 printf "%s" "${version}"
