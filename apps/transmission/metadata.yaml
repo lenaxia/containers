@@ -1,6 +1,6 @@
 ---
 app: transmission
-semvar: true
+semver: true
 channels:
   - name: stable
     platforms: ["linux/amd64", "linux/arm64"]
