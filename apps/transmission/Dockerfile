@@ -17,13 +17,14 @@ RUN apk add --no-cache ca-certificates findutils geoip p7zip python3 bash gettex
     transmission-remote~"${VERSION}"
 
 #hadolint ignore=DL3059
-RUN mkdir -p /app \
+RUN mkdir -p /app /config \
     && chown -R root:root /usr/bin/transmission* \
     && chmod -R 755 /usr/bin/transmission* \
     && ln -s /usr/bin/transmission-cli /app/transmission-cli \
     && ln -s /usr/bin/transmission-daemon /app/transmission-daemon \
     && ln -s /usr/bin/transmission-remote /app/transmission-remote \
     && ln -s /usr/share/transmission/public_html /app/web \
+    && chown -R nobody:nogroup /config \
     && rm -rf /tmp/*
 
 USER nobody:nogroup
