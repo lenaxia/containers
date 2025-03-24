@@ -45,20 +45,20 @@ jobs:
       - name: Install regctl
         uses: regclient/actions/regctl-installer@main
 
-      - name: Registry Version
-        id: registry
+      - name: Actual Version
+        id: actual
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           if ! version=$(regctl image inspect ghcr.io/${{ github.repository_owner }}/${{ matrix.apps.name }}:rolling \
               | jq --raw-output '.config.Labels["org.opencontainers.image.version"]' 2>/dev/null) || [[ -z "${version}" ]];
           then
-              echo "Failed to get registry version for ${{ matrix.apps.name }}"
+              echo "Failed to get actual version for ${{ matrix.apps.name }}"
               exit 1
           fi
           echo "version=${version}" >> $GITHUB_OUTPUT
 
-      - if: ${{ matrix.apps.version != steps.registry.outputs.version }}
+      - if: ${{ matrix.apps.version != steps.actual.outputs.version }}
         name: Retry Release
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -68,3 +68,11 @@ jobs:
               -f app=${{ matrix.apps.name }} \
               -f release=true \
               -f test=true
+
+          {
+              echo '## Retrying Release'
+              echo
+              echo '| Container Name | Actual Version | Expected Version |'
+              echo '|----------------|------------------|----------------|'
+              echo '| `${{ matrix.apps.name }}` | `${{ steps.actual.outputs.version }}` | `${{ matrix.apps.version }}` |'
+          } >> $GITHUB_STEP_SUMMARY
