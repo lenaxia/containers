@@ -78,6 +78,7 @@ jobs:
         with:
           app: ${{ inputs.app }}
           image: ${{ steps.build.outputs.imageid }}
+          token: ${{ github.token }}
 
       - if: ${{ inputs.release }}
         name: Export Digest

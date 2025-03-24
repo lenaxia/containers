@@ -10,6 +10,9 @@ inputs:
   image:
     description: Image
     required: true
+  token:
+    description: GitHub Token
+    required: true
 
 runs:
   using: composite
@@ -22,6 +25,8 @@ runs:
 
     - name: Setup Testing Tools
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
       run: setup.sh "${{ inputs.app }}"
 
     - name: Run Tests
