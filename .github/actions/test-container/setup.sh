@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 APP="${1:?}"
 
-if yq '.schemaVersion' "./apps/${APP}/tests.yaml" &>/dev/null; then
+if yq --exit-status '.schemaVersion' "./apps/${APP}/tests.yaml" &>/dev/null; then
     gh release download --repo GoogleContainerTools/container-structure-test --pattern "*-linux-amd64" --output /usr/local/bin/container-structure-test
     chmod +x /usr/local/bin/container-structure-test
 else
