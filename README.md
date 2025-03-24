@@ -100,6 +100,16 @@ Some applications do not support defining configuration via environment variable
 
 For applications that need to have persistent configuration data the config volume is hardcoded to `/config` inside the container. This is not able to be changed in most cases.
 
+## Verify image signature
+
+These container images are signed using the [attest-build-provenance](https://github.com/actions/attest-build-provenance) action.
+
+The attestations can be checked with the following command, verifying that the image is actually built by the GitHub CI system:
+
+```sh
+gh attestation verify --repo home-operations/containers oci://ghcr.io/home-operations/${App}:${TAG}
+```
+
 ## Contributing
 
 We encourage the use of upstream container images whenever possible. However, there are scenarios where using an upstream image may not be feasible—such as when tools like [s6-overlay](https://github.com/just-containers/s6-overlay) or [gosu](https://github.com/tianon/gosu) are needed, or when the application exhibits [unusual behaviors](https://github.com/nzbgetcom/nzbget/blob/989e848f8e9d3d4031f5d09d7b8945954a9f67b0/docker/entrypoint.sh#L17-L18), particularly when running as [root](https://github.com/plexinc/pms-docker/blob/8a42ea4c623e4df06928f945bcf8f450ba77fcf5/root/etc/cont-init.d/45-plex-hw-transcode-and-connected-tuner#L21). In such cases, contributing to this repository might make sense.
