@@ -22,7 +22,9 @@ The goal of this project is to support [semantically versioned](https://semver.o
 
 It also adheres to a [KISS principle](https://en.wikipedia.org/wiki/KISS_principle), logging to stdout, [one process per container](https://testdriven.io/tips/59de3279-4a2d-4556-9cd0-b444249ed31e/), no [s6-overlay](https://github.com/just-containers/s6-overlay) and all images are built on top of [Alpine](https://hub.docker.com/_/alpine) or [Ubuntu](https://hub.docker.com/_/ubuntu).
 
-## Tag immutability
+## Features
+
+### Tag immutability
 
 The containers built here do not use immutable tags, as least not in the more common way you have seen from [linuxserver.io](https://fleet.linuxserver.io/) or [Bitnami](https://bitnami.com/stacks/containers).
 
@@ -37,15 +39,11 @@ We do take a similar approach but instead of appending a `-ls69` or `-r420` pref
 
 _If pinning an image to the sha256 digest, tools like [Renovate](https://github.com/renovatebot/renovate) support updating the container on a digest or application version change._
 
-## Eschewed features
-
-There is no multiple "channels" of the same application. For example Prowlarr, Radarr, Lidarr, and Sonarr will only have the develop branch published and not the master "stable" branch. Qbittorrent will only be published with LibTorrent 2.x.
-
-## Rootless
+### Rootless
 
 To run these containers as non-root make sure you update your configuration to the user and group you want.
 
-### Docker compose
+#### Docker compose
 
 ```yaml
 networks:
@@ -60,7 +58,7 @@ services:
     # ...
 ```
 
-### Kubernetes
+#### Kubernetes
 
 ```yaml
 apiVersion: apps/v1
@@ -82,7 +80,7 @@ spec:
 # ...
 ```
 
-## Passing arguments to a application
+### Passing arguments to a application
 
 Some applications do not support defining configuration via environment variables and instead only allow certain config to be set in the command line arguments for the app. To circumvent this, for applications that have an `entrypoint.sh` read below.
 
@@ -96,19 +94,23 @@ Some applications do not support defining configuration via environment variable
       - "8080"
     ```
 
-## Configuration volume
+### Configuration volume
 
 For applications that need to have persistent configuration data the config volume is hardcoded to `/config` inside the container. This is not able to be changed in most cases.
 
-## Verify image signature
+### Verify image signature
 
 These container images are signed using the [attest-build-provenance](https://github.com/actions/attest-build-provenance) action.
 
 The attestations can be checked with the following command, verifying that the image is actually built by the GitHub CI system:
 
 ```sh
-gh attestation verify --repo home-operations/containers oci://ghcr.io/home-operations/${App}:${TAG}
+gh attestation verify --repo home-operations/containers oci://ghcr.io/home-operations/${APP}:${TAG}
 ```
+
+### Eschewed features
+
+There is no multiple "channels" of the same application. For example Prowlarr, Radarr, Lidarr, and Sonarr will only have the develop branch published and not the master "stable" branch. Qbittorrent will only be published with LibTorrent 2.x.
 
 ## Contributing
 
