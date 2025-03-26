@@ -4,9 +4,9 @@ name: Release
 
 on:
   pull_request:
-    branches: ["main"]
+    branches: [$default-branch]
   push:
-    branches: ["main"]
+    branches: [$default-branch]
     paths: ["apps/**"]
   workflow_dispatch:
     inputs:
