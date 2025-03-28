@@ -124,7 +124,7 @@ jobs:
           set: |
             *.args.VENDOR=${{ steps.vars.outputs.repository-owner }}
             *.cache-from=${{ format('type=registry,ref=ghcr.io/{0}/build_cache:{1}-{2},mode=max', steps.vars.outputs.repository-owner, inputs.app, steps.vars.outputs.platform-arch) }}
-            *.cache-to=${{ inputs.release && format('type=registry,ref=ghcr.io/{0}/build_cache:{1}-{2}', steps.vars.outputs.repository-owner, inputs.app, steps.vars.outputs.platform-arch) || '' }}
+            *.cache-to=${{ inputs.release && format('type=registry,ref=ghcr.io/{0}/build_cache:{1}-{2},mode=max,compression=zstd,force-compression=true', steps.vars.outputs.repository-owner, inputs.app, steps.vars.outputs.platform-arch) || '' }}
             *.labels.org.opencontainers.image.title=${{ inputs.app }}
             *.labels.org.opencontainers.image.url=https://ghcr.io/${{ steps.vars.outputs.repository-owner }}/${{ inputs.app }}
             *.labels.org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
