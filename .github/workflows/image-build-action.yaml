@@ -151,11 +151,14 @@ jobs:
       #     image: ${{ fromJSON(steps.bake.outputs.metadata).image['containerimage.config.digest'] }}
       #     token: ${{ github.token }}
 
+      - name: Debug
+        run: |
+          docker buildx imagetools inspect ghcr.io/${{ steps.vars.outputs.repository-owner }}/${{ inputs.app }}@${{ fromJSON(steps.bake.outputs.metadata).image['containerimage.digest'] }} --raw || true
+          docker buildx imagetools inspect ghcr.io/${{ steps.vars.outputs.repository-owner }}/${{ inputs.app }}@${{ fromJSON(steps.bake.outputs.metadata).image['containerimage.config.digest'] }} --raw || true
+
       - if: ${{ inputs.release }}
         name: Export digest
         run: |
-          docker buildx imagetools inspect ghcr.io/${{ steps.vars.outputs.repository-owner }}/${{ inputs.app }}@${{ fromJSON(steps.bake.outputs.metadata).image['containerimage.digest'] }} --raw
-          docker buildx imagetools inspect ghcr.io/${{ steps.vars.outputs.repository-owner }}/${{ inputs.app }}@${{ fromJSON(steps.bake.outputs.metadata).image['containerimage.config.digest'] }} --raw
           mkdir -p ${{ runner.temp }}/digests
           DIGEST="${{ fromJSON(steps.bake.outputs.metadata).image['containerimage.digest'] }}"
           touch "${{ runner.temp }}/digests/${DIGEST#sha256:}"
