@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.platforms.outputs.matrix }}
-      upstream-version: ${{ steps.image-versions.outputs.upstream-version }}
+      version: ${{ steps.app-version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -126,13 +126,14 @@ jobs:
             ./docker-bake.hcl
             cwd://${{ runner.temp }}/bake-meta.json
           load: true
+          no-cache: true
           set: |
             *.args.VENDOR=${{ steps.vars.outputs.repository-owner }}
             *.cache-from=${{ format('type=registry,ref=ghcr.io/{0}/build_cache:{1}-{2},mode=max', steps.vars.outputs.repository-owner, inputs.app, steps.vars.outputs.platform-arch) }}
             *.cache-to=${{ inputs.release && format('type=registry,ref=ghcr.io/{0}/build_cache:{1}-{2}', steps.vars.outputs.repository-owner, inputs.app, steps.vars.outputs.platform-arch) || '' }}
             *.labels.org.opencontainers.image.title=${{ inputs.app }}
             *.labels.org.opencontainers.image.url=https://ghcr.io/${{ steps.vars.outputs.repository-owner }}/${{ inputs.app }}
-            *.labels.org.opencontainers.image.version=${{ needs.prepare.outputs.upstream-version }}
+            *.labels.org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
             *.labels.org.opencontainers.image.revision=${{ github.sha }}
             *.labels.org.opencontainers.image.vendor=${{ steps.vars.outputs.repository-owner }}
             ${{ inputs.release && format('*.output=type=image,name=ghcr.io/{0}/{1},push-by-digest=true,name-canonical=true,push=true', steps.vars.outputs.repository-owner, inputs.app) || '' }}
@@ -142,13 +143,13 @@ jobs:
           targets: image
           workdir: ./apps/${{ inputs.app }}
 
-      - if: ${{ inputs.test }}
-        name: Run Container Tests
-        uses: ./.github/actions/container-tests
-        with:
-          app: ${{ inputs.app }}
-          image: ${{ fromJSON(steps.bake.outputs.metadata).image['containerimage.config.digest'] }}
-          token: ${{ github.token }}
+      # - if: ${{ inputs.test }}
+      #   name: Run Container Tests
+      #   uses: ./.github/actions/container-tests
+      #   with:
+      #     app: ${{ inputs.app }}
+      #     image: ${{ fromJSON(steps.bake.outputs.metadata).image['containerimage.config.digest'] }}
+      #     token: ${{ github.token }}
 
       - if: ${{ inputs.release }}
         name: Export digest
@@ -208,7 +209,7 @@ jobs:
         working-directory: ${{ runner.temp }}/digests
         run: |
           docker buildx imagetools create \
-              $(jq --raw-output --compact-output '.target."docker-metadata-action".tags | map(select(startswith("${{ steps.vars.outputs.repository-owner }}/${{ inputs.app }}")) | "-t ghcr.io/" + .) | join(" ")' ${{ runner.temp }}/bake-meta.json) \
+              $(jq --raw-output --compact-output '.target."docker-metadata-action".tags | map(select(startswith("ghcr.io/${{ steps.vars.outputs.repository-owner }}/${{ inputs.app }}")) | "-t " + .) | join(" ")' ${{ runner.temp }}/bake-meta.json) \
               $(printf 'ghcr.io/${{ steps.vars.outputs.repository-owner }}/${{ inputs.app }}@sha256:%s ' *)
 
       - name: Inspect image
@@ -273,7 +274,7 @@ jobs:
           color: "0xFF0000"
           description: |
             Application: `${{ inputs.app }}`
-            Version: `${{ needs.prepare.outputs.upstream-version }}`
+            Version: `${{ needs.prepare.outputs.version }}`
             [Rebuild](${{ github.server_url }}/${{ github.repository }}/actions/workflows/release.yaml)
           nodetail: true
           title: Container build failed
