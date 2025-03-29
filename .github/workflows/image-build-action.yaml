@@ -19,8 +19,8 @@ jobs:
     name: Prepare
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.platforms.outputs.matrix }}
-      version: ${{ steps.app-version.outputs.version }}
+      platforms: ${{ steps.bake-options.outputs.platforms }}
+      version: ${{ steps.bake-options.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -32,18 +32,17 @@ jobs:
           script: |
             core.setOutput('repository-owner', '${{ github.repository_owner }}'.toLowerCase());
 
-      - name: Get App Version
-        id: app-version
-        working-directory: ./apps/${{ inputs.app }}
-        run: |
-          VERSION=$(docker buildx bake image-all --print | jq --raw-output --compact-output '.target."image-all".args.VERSION')
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+      - name: Get Bake Options
+        id: bake-options
+        uses: ./.github/actions/bake-options
+        with:
+          app: ${{ inputs.app }}
 
       - name: Get Image Versions
         uses: ./.github/actions/image-versions
         id: image-versions
         with:
-          upstream-version: ${{ steps.app-version.outputs.version }}
+          upstream-version: ${{ steps.bake-options.outputs.version }}
 
       - name: Build Meta
         uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
@@ -52,7 +51,8 @@ jobs:
           DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
         with:
           flavor: latest=false
-          images: ghcr.io/${{ steps.vars.outputs.repository-owner }}/${{ inputs.app }}
+          images: |
+            ghcr.io/${{ steps.vars.outputs.repository-owner }}/${{ inputs.app }}
           tags: |
             type=semver,pattern={{version}},value=${{ steps.image-versions.outputs.semantic }}
             type=semver,pattern={{major}}.{{minor}},value=${{ steps.image-versions.outputs.semantic }},enable=${{ steps.image-versions.outputs.is-valid-semver }}
@@ -61,7 +61,8 @@ jobs:
             type=raw,value=rolling
 
       - name: Rename meta bake definition file
-        run: mv ${{ steps.meta.outputs.bake-file }} ${{ runner.temp }}/bake-meta.json
+        run: |
+          mv ${{ steps.meta.outputs.bake-file }} ${{ runner.temp }}/bake-meta.json
 
       - name: Upload meta bake definition
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -71,20 +72,13 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-      - name: Create matrix
-        id: platforms
-        working-directory: ./apps/${{ inputs.app }}
-        run: |
-          PLATFORMS=$(docker buildx bake image-all --print | jq --raw-output --compact-output '.target."image-all".platforms')
-          echo "matrix=${PLATFORMS}" >> $GITHUB_OUTPUT
-
   build:
     name: Build (${{ matrix.platform }})
     needs: prepare
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJson(needs.prepare.outputs.matrix) }}
+        platform: ${{ fromJson(needs.prepare.outputs.platforms) }}
     runs-on: ${{ startsWith(matrix.platform, 'linux/arm') && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     steps:
       - name: Checkout
@@ -253,7 +247,8 @@ jobs:
       - name: Verify Attestation
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: gh attestation verify --repo ${{ github.repository }} oci://ghcr.io/${{ steps.vars.outputs.repository-owner }}/${{ inputs.app }}@${{ needs.release.outputs.digest }}
+        run: |
+          gh attestation verify --repo ${{ github.repository }} oci://ghcr.io/${{ steps.vars.outputs.repository-owner }}/${{ inputs.app }}@${{ needs.release.outputs.digest }}
 
   notify:
     if: ${{ inputs.release && !cancelled() }}
