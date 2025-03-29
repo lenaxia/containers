@@ -19,18 +19,19 @@ runs:
           const fs = require('fs');
           const path = require('path');
 
-          function scanDirectory(dirPath) {
+          function scanDirectory(path) {
               try {
-                  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+                  const entries = fs.readdirSync(path, { withFileTypes: true });
                   const folderNames = entries
                       .filter((entry) => entry.isDirectory())
                       .map((entry) => entry.name);
                   return folderNames;
               } catch (error) {
-                  core.setFailed(`Error reading directory ${dirPath}:`, error.message);
+                  core.setFailed(`Error reading directory ${path}: ${error.message}`);
                   return [];
               }
           }
 
-          const apps = scanDirectory(path.resolve(__dirname, 'apps')).sort();
+          const appsDirectory = path.resolve(process.cwd(), 'apps');
+          const apps = scanDirectory(appsDirectory).sort();
           core.setOutput('apps', JSON.stringify(apps));
