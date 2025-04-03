@@ -4,12 +4,9 @@ ARG TARGETARCH
 ARG VENDOR
 ARG VERSION
 
-ENV UMASK="0002" \
+ENV DEBIAN_FRONTEND="noninteractive" \
+    UMASK="0002" \
     TZ="Etc/UTC"
-
-ENV DEBCONF_NONINTERACTIVE_SEEN="true" \
-    DEBIAN_FRONTEND="noninteractive" \
-    APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE="DontWarn"
 
 ENV NVIDIA_DRIVER_CAPABILITIES="compute,video,utility"
 
@@ -24,7 +21,6 @@ RUN \
         ca-certificates \
         catatonit \
         curl \
-        jo \
         jq \
         nano \
         tzdata \
