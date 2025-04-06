@@ -259,7 +259,7 @@ jobs:
           gh attestation verify --repo ${{ github.repository }} oci://ghcr.io/${{ steps.vars.outputs.repository-owner }}/${{ inputs.app }}@${{ needs.merge.outputs.digest }}
 
   release:
-    if: ${{ inputs.release && ! needs.prepare.outputs.app-exists }}
+    if: ${{ inputs.release && needs.prepare.outputs.app-exists == 'false' }}
     name: Release
     needs: ["prepare", "attest"]
     runs-on: ubuntu-latest
