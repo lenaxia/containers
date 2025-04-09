@@ -1,5 +1,4 @@
-# NOTE: When updating the alpine version, remember to update metadata.yaml
-# file with the new alpine version number in the renovate annotation.
+# NOTE: Alpine version is tied to the version in the Renovate annotation in docker-bake.hcl
 FROM docker.io/library/python:3.13-alpine3.21
 
 ARG TARGETPLATFORM

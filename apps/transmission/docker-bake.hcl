@@ -1,8 +1,7 @@
 target "docker-metadata-action" {}
 
 variable "VERSION" {
-  // NOTE: When updating the alpine version, remember to update the Dockerfile
-  // file with the new alpine version number in the base image.
+  // NOTE: Alpine version is tied to the version of the base image in the Dockerfile
   // renovate: datasource=repology depName=alpine_3_21/transmission-daemon versioning=loose
   default = "4.0.6-r0"
 }
