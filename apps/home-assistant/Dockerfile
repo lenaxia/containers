@@ -100,6 +100,9 @@ RUN \
 
 COPY . /
 
+# Ref: https://bugs.python.org/issue43642
+RUN /hack/musl-library-hack.sh
+
 USER nobody:nogroup
 WORKDIR /config
 VOLUME ["/config"]
