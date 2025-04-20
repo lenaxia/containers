@@ -102,6 +102,15 @@ To verify that the image was built by GitHub CI, use the following command:
 gh attestation verify --repo home-operations/containers oci://ghcr.io/home-operations/${APP}:${TAG}
 ```
 
+or by using [cosign](https://github.com/sigstore/cosign):
+
+```sh
+cosign verify-attestation --new-bundle-format --type slsaprovenance1 \
+    --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+    --certificate-identity-regexp "^https://github.com/home-operations/containers/.github/workflows/app-builder.yaml@refs/heads/main" \
+    ghcr.io/home-operations/${APP}:${TAG}
+```
+
 ### Eschewed Features
 
 This repository does not support multiple "channels" for the same application. For example:
