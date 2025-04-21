@@ -1,17 +1,14 @@
 #!/usr/bin/env bash
+#shellcheck disable=SC2086
 
-minijinja-cli --env /defaults/settings.json.j2 > /config/settings.json
-
-if [[ "${TRANSMISSION__DEBUG}" == "true" ]]; then
-    echo "Transmission starting with the following configuration..."
-    cat /config/settings.json
+# Only template the config file if our custom env variables are present
+if env | grep -q "^TRANSMISSION__"; then
+    minijinja-cli --env /defaults/settings.json.j2 > /config/settings.json
 fi
 
-#shellcheck disable=SC2086
 exec \
     /usr/bin/transmission-daemon \
         --foreground \
         --config-dir /config \
-        --log-level "${TRANMISSIONS__LOG_LEVEL:-info}" \
-        --port "${TRANSMISSION__RPC_PORT:-9091}" \
+        --log-level "${TRANSMISSION_LOG_LEVEL:-info}" \
         "$@"
