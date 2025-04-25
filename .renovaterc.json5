@@ -42,7 +42,7 @@
     },
     {
       description: ["Assign Application Labels"],
-      labels: ["app/{{parentDir}}"],
+      addLabels: ["app/{{parentDir}}"],
       matchFileNames: ["**/docker-bake.hcl"],
     },
     {
