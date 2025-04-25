@@ -41,6 +41,11 @@
       ignoreTests: false,
     },
     {
+      description: ["Assign Application Labels"],
+      labels: ["app/{{parentDir}}"],
+      matchFileNames: ["**/docker-bake.hcl"],
+    },
+    {
       description: ["Allowed Ubuntu Version"],
       matchDatasources: ["docker"],
       matchPackageNames: ["/ubuntu/"],
