@@ -3,15 +3,9 @@
 name: Label Sync
 
 on:
-  workflow_dispatch:
-  push:
-    branches: ["main"]
-    paths:
-      - .github/labels.yaml
-      - .github/workflows/label-sync.yaml
-      - apps/**
   schedule:
-    - cron: "0 0 * * *"
+    - cron: "30 1 * * *"
+  workflow_dispatch:
 
 jobs:
   label-sync:
