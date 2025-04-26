@@ -81,6 +81,8 @@ RUN \
     && \
     uv pip install ldap3 \
     && \
+    uv pip install pydantic\
+    && \
     uv pip install rpds \
     && \
     curl -fsSL "https://github.com/home-assistant/core/archive/${VERSION}.tar.gz" \
