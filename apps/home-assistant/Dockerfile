@@ -81,7 +81,7 @@ RUN \
     && \
     uv pip install ldap3 \
     && \
-    uv pip install pydantic\
+    uv pip install "pydantic>=2.0.0"\
     && \
     uv pip install rpds \
     && \
