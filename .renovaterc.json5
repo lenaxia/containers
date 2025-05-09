@@ -51,6 +51,12 @@
       ignoreTests: false,
     },
     {
+      description: "Create Individual PRs for Application Base Image Updates",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/alpine/", "/ubuntu/"],
+      additionalBranchPrefix: "{{parentDir}}-",
+    },
+    {
       description: ["Assign Application Labels"],
       addLabels: ["app/{{parentDir}}"],
       matchFileNames: [
