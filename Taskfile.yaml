@@ -36,7 +36,7 @@ tasks:
                 container-structure-test test --image "${IMAGE}" --config tests.yaml
                 ;;
             "goss")
-                {{.ROOT_DIR}}/.bin/dgoss/dgoss run "${IMAGE}"
+                {{.BIN_DIR}}/dgoss/dgoss run "${IMAGE}"
                 ;;
         esac
       - defer: rm -f docker-bake.json
