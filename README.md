@@ -45,9 +45,9 @@ By default the majority of our containers run as a non-root user (`65534:65534`)
 
 ```yaml
 services:
-  plex:
-    image: ghcr.io/home-operations/plex:1.41.6.9685
-    container_name: plex
+  home-assistant:
+    image: ghcr.io/home-operations/home-assistant:2025.5.1
+    container_name: home-assistant
     user: 1000:1000 # The data volume permissions must match this user:group
     read_only: true # May require mounting in additional dirs as tmpfs
     tmpfs:
@@ -61,7 +61,7 @@ services:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: plex
+  name: home-assistant
 # ...
 spec:
   # ...
@@ -69,13 +69,13 @@ spec:
     # ...
     spec:
       containers:
-        - name: plex
-          image: ghcr.io/home-operations/plex:1.41.6.968
+        - name: home-assistant
+          image: ghcr.io/home-operations/home-assistant:2025.5.1
           securityContext: # May require mounting in additional dirs as emptyDir
             allowPrivilegeEscalation: false
             capabilities:
               drop:
-              - ALL
+                - ALL
             readOnlyRootFilesystem: true
           volumeMounts:
             - name: tmp
