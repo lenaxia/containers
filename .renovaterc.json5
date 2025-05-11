@@ -53,16 +53,13 @@
     {
       description: "Create Individual PRs for Application Base Image Updates",
       matchDatasources: ["docker"],
-      matchPackageNames: ["/alpine/", "/ubuntu/"],
+      matchPackageNames: ["/alpine/", "/golang/", "/node/", "/python/", "/ubuntu/"],
       additionalBranchPrefix: "{{parentDir}}-",
     },
     {
       description: ["Assign Application Labels"],
       addLabels: ["app/{{parentDir}}"],
-      matchFileNames: [
-        "**/docker-bake.hcl",
-        "**/Dockerfile",
-      ],
+      matchFileNames: ["**/docker-bake.hcl", "**/Dockerfile"],
     },
     {
       description: ["Allowed Ubuntu Version"],
