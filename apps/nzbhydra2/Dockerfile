@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 FROM docker.io/library/amazoncorretto:17-alpine3.21
 
 ARG TARGETARCH
