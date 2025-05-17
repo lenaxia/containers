@@ -11,14 +11,15 @@ RUN apt-get update && \
         mysql-client="${VERSION}" \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the entrypoint script
+# Copy the entrypoint script and initdb directory
 COPY ./apps/mysql-init/entrypoint.sh /entrypoint.sh
-COPY ./initdb /initdb
+COPY ./apps/mysql-init/initdb /initdb
 
-# Make the script executable
+# Make the script executable and ensure proper permissions
 RUN chmod +x /entrypoint.sh && \
     mkdir -p /initdb && \
-    chown nobody:nogroup /initdb
+    chown -R nobody:nogroup /initdb && \
+    chmod -R 755 /initdb
 
 USER nobody:nogroup
 ENTRYPOINT ["/usr/bin/catatonit", "--"]
