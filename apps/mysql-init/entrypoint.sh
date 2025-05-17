@@ -46,20 +46,27 @@ for dbname in ${INIT_MYSQL_DBNAME}; do
             --execute="SELECT 1 FROM information_schema.schemata WHERE schema_name = '${dbname}'"
     )
     if [[ -z "${database_exists}" ]]; then
-        printf "\e[1;32m%-6s\e[m\n" "Create Database ${dbname} ..."
-        mysql --host="${INIT_MYSQL_HOST}" --user="${INIT_MYSQL_SUPER_USER}" --execute="CREATE DATABASE IF NOT EXISTS ${dbname};"
+        if [[ "${INIT_MYSQL_UTF8}" == "true" ]]; then
+            printf "\e[1;32m%-6s\e[m\n" "Create Database ${dbname} with UTF8 encoding ..."
+            mysql --host="${INIT_MYSQL_HOST}" --user="${INIT_MYSQL_SUPER_USER}" \
+                --execute="CREATE DATABASE IF NOT EXISTS ${dbname} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+        else
+            printf "\e[1;32m%-6s\e[m\n" "Create Database ${dbname} ..."
+            mysql --host="${INIT_MYSQL_HOST}" --user="${INIT_MYSQL_SUPER_USER}" \
+                --execute="CREATE DATABASE IF NOT EXISTS ${dbname};"
+        fi
+        
+        database_init_file="/initdb/${dbname}.sql"
+        if [[ -f "${database_init_file}" ]]; then
+            printf "\e[1;32m%-6s\e[m\n" "Initialize Database ..."
+            mysql \
+                --host="${INIT_MYSQL_HOST}" \
+                --user="${INIT_MYSQL_SUPER_USER}" \
+                --database="${dbname}" \
+                < "${database_init_file}"
+        fi
     fi
     printf "\e[1;32m%-6s\e[m\n" "Update User Privileges on Database ..."
-    mysql --host="${INIT_MYSQL_HOST}" --user="${INIT_MYSQL_SUPER_USER}" --execute="GRANT ALL PRIVILEGES ON ${dbname}.* TO '${INIT_MYSQL_USER}'@'%'; FLUSH PRIVILEGES;"
+    mysql --host="${INIT_MYSQL_HOST}" --user="${INIT_MYSQL_SUPER_USER}" \
+        --execute="GRANT ALL PRIVILEGES ON ${dbname}.* TO '${INIT_MYSQL_USER}'@'%'; FLUSH PRIVILEGES;"
 done
-
-# Check if the /docker-entrypoint-initdb.d/ folder exists
-if [ -d "/docker-entrypoint-initdb.d/" ]; then
-    for sql_file in /docker-entrypoint-initdb.d/*.sql; do
-        echo "Executing $sql_file"
-        echo "mysql -h ${INIT_MYSQL_HOST} -u ${INIT_MYSQL_USER} -p${INIT_MYSQL_PASS} ${INIT_MYSQL_DBNAME} < $sql_file"
-        mysql -h ${INIT_MYSQL_HOST} -u ${INIT_MYSQL_USER} -p${INIT_MYSQL_PASS} ${INIT_MYSQL_DBNAME} < $sql_file
-    done
-else
-    echo "The /docker-entrypoint-initdb.d/ folder does not exist. Skipping SQL file execution."
-fi
