@@ -1,0 +1,9 @@
+# Ignore everything by default
+*
+
+# Except these files/directories
+!Dockerfile
+!docker-bake.hcl
+!entrypoint.sh
+!initdb/
+!initdb/*.sql
