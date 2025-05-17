@@ -12,8 +12,8 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the entrypoint script and initdb directory
-COPY ./apps/mysql-init/entrypoint.sh /entrypoint.sh
-COPY ./apps/mysql-init/initdb /initdb
+COPY entrypoint.sh /entrypoint.sh
+COPY initdb /initdb
 
 # Make the script executable and ensure proper permissions
 RUN chmod +x /entrypoint.sh && \
