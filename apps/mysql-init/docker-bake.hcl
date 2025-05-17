@@ -1,12 +1,13 @@
 target "docker-metadata-action" {}
 
 variable "VERSION" {
-  // renovate: datasource=repology depName=alpine_3_21/postgresql17-client versioning=loose
-  default = "17.5-r0"
+  // renovate: datasource=repology depName=debian_11/mysql-client versioning=loose
+  default = "8.0.36-0"
+
 }
 
 variable "SOURCE" {
-  default = "https://github.com/postgres/postgres"
+  default = "https://github.com/mysql/mysql-server"
 }
 
 group "default" {
