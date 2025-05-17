@@ -1,6 +1,5 @@
 FROM debian:bullseye-slim
 
-ARG VERSION
 USER root
 
 # Install required packages
@@ -8,7 +7,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
         catatonit \
-        mysql-client="${VERSION}" \
+        mysql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the entrypoint script and initdb directory
