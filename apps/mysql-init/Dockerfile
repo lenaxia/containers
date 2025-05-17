@@ -7,7 +7,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
         catatonit \
-        mysql-client \
+        default-mysql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the entrypoint script and initdb directory
