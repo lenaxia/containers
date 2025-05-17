@@ -91,12 +91,10 @@ RUN \
     uv pip install --only-binary=:all: --find-links "https://wheels.home-assistant.io/musllinux/" \
         homeassistant=="${VERSION}" \
     && { \
-        uv pip install --only-binary=:all: --find-links "https://wheels.home-assistant.io/musllinux/" ldap3 \
-        || uv pip install ldap3; \
+        uv pip install ldap3; \
     } \
     && { \
-        uv pip install --only-binary=:all: --find-links "https://wheels.home-assistant.io/musllinux/" rdps \
-        || uv pip install rdps; \
+        uv pip install rdps; \
     } \
     && curl -fsSL -o /bin/go2rtc \
         "https://github.com/AlexxIT/go2rtc/releases/latest/download/go2rtc_linux_${TARGETARCH}" \
