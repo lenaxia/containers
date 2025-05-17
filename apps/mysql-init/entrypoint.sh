@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
 export INIT_MYSQL_SUPER_USER=${INIT_MYSQL_SUPER_USER:-root}
+export INIT_MYSQL_PORT=${INIT_MYSQL_PORT:-3306}
+export INIT_MYSQL_UTF8=${INIT_MYSQL_UTF8:-"false"}
 
 if [[ -z "${INIT_MYSQL_HOST}"       ||
       -z "${INIT_MYSQL_SUPER_PASS}" ||
