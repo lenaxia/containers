@@ -2,5 +2,5 @@
 schemaVersion: "2.0.0"
 fileExistenceTests:
   - name: mysql
-    path: /usr/bin/mysql
+    path: /usr/bin/mariadb
     shouldExist: true
