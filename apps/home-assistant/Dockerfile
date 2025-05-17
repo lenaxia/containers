@@ -90,9 +90,8 @@ RUN \
     && \
     uv pip install --only-binary=:all: --find-links "https://wheels.home-assistant.io/musllinux/" \
         homeassistant=="${VERSION}" \
-#    && { \
-#        uv pip install ldap3; \
-#    } \
+    && \
+    uv pip install ldap3 \
 #    && { \
 #        uv pip install rdps; \
 #    } \
