@@ -25,8 +25,8 @@ ENV HOME="/config" \
 USER root
 WORKDIR /app
 
-RUN \
-    apk add --no-cache \
+# Install system dependencies
+RUN apk add --no-cache \
         bash \
         binutils \
         bluez \
@@ -68,61 +68,89 @@ RUN \
         tiff \
         tzdata \
         unzip \
-        xz \
-    && \
-    apk add --no-cache --virtual=.build-deps \
+        xz
+
+# Install build dependencies
+RUN apk add --no-cache --virtual=.build-deps \
         autoconf \
         build-base \
-        libffi-dev \
-    && \
-    pip install uv \
-    && \
+        libffi-dev
+
+# Install uv package manager
+RUN pip install uv
+
+# Create temporary directory for downloads
+RUN mkdir -p /tmp/homeassistant
+
+# Download and extract Home Assistant core
+RUN if [ -z "$VERSION" ]; then \
+        echo "ERROR: VERSION argument is not set" && exit 1; \
+    fi && \
+    echo "Downloading Home Assistant version: $VERSION" && \
     curl -fsSL "https://github.com/home-assistant/core/archive/${VERSION}.tar.gz" \
-        | tar xzf - -C /tmp --strip-components=1 \
-    && \
-    HOME_ASSISTANT_BASE=$(curl -fsSL "https://raw.githubusercontent.com/home-assistant/core/${VERSION}/build.yaml" | grep "${ARCH}: " | cut -d ":" -f3) \
-    && \
+        | tar xzf - -C /tmp/homeassistant --strip-components=1 || \
+    (echo "Failed to download Home Assistant core version ${VERSION}" && exit 1)
+
+# Get Home Assistant base version
+RUN HOME_ASSISTANT_BASE=$(curl -fsSL "https://raw.githubusercontent.com/home-assistant/core/${VERSION}/build.yaml" | grep "${ARCH}: " | cut -d ":" -f3) && \
+    echo "Home Assistant base version: $HOME_ASSISTANT_BASE" && \
+    if [ -z "$HOME_ASSISTANT_BASE" ]; then \
+        echo "ERROR: Failed to determine Home Assistant base version" && exit 1; \
+    fi && \
+    echo $HOME_ASSISTANT_BASE > /tmp/home_assistant_base
+
+# Install Home Assistant requirements
+RUN HOME_ASSISTANT_BASE=$(cat /tmp/home_assistant_base) && \
     uv pip install --only-binary=:all: --find-links "https://wheels.home-assistant.io/musllinux/" \
-        --requirement "https://raw.githubusercontent.com/home-assistant/docker/${HOME_ASSISTANT_BASE}/requirements.txt" \
-    && \
+        --requirement "https://raw.githubusercontent.com/home-assistant/docker/${HOME_ASSISTANT_BASE}/requirements.txt"
+
+# Install all requirements
+RUN if [ ! -f /tmp/homeassistant/requirements_all.txt ]; then \
+        echo "ERROR: requirements_all.txt not found" && exit 1; \
+    fi && \
     uv pip install --only-binary=:all: --find-links "https://wheels.home-assistant.io/musllinux/" \
-        --requirement /tmp/requirements_all.txt \
-    && \
-    uv pip install --only-binary=:all: --find-links "https://wheels.home-assistant.io/musllinux/" \
-        homeassistant=="${VERSION}" \
-    && \
-    uv pip install ldap3 \
-    && \
-    uv pip install rpds-py \
-    && \
-    # Install tiktoken from pre-compiled wheel
-    uv pip install --only-binary=:all: \
+        --requirement /tmp/homeassistant/requirements_all.txt
+
+# Install Home Assistant
+RUN uv pip install --only-binary=:all: --find-links "https://wheels.home-assistant.io/musllinux/" \
+        homeassistant=="${VERSION}"
+
+# Install additional dependencies
+RUN uv pip install ldap3 rpds-py
+
+# Install tiktoken from pre-compiled wheel
+RUN uv pip install --only-binary=:all: \
         --find-links "https://wheels.home-assistant.io/musllinux/" \
         --find-links "https://pypi.org/simple/" \
-        tiktoken \
-    && \
-    uv pip install --index-url https://pypi.org/simple/ \
-        strands-agents>=0.2.0 \
-        'strands-agents[litellm]' \
-    && \
-    # Install other CortexAgent dependencies
-    uv pip install \
+        tiktoken
+
+# Install all strands packages with pip to ensure consistent versioning
+RUN pip install --no-cache-dir --index-url https://pypi.org/simple/ \
+        strands-agents==0.2.1 \
+        'strands-agents[litellm]==0.2.1' \
         strands-agents-tools \
-        strands-agents-builder \
+        strands-agents-builder
+
+# Install other CortexAgent dependencies with uv
+RUN uv pip install \
         pydantic>=2.0.0 \
         boto3 \
         anthropic>=0.52.0 \
         mcp \
         anyio>=4.9.0 \
         aiohttp_sse>=2.2.0 \
-        voluptuous \
-    && \
-    curl -fsSL -o /bin/go2rtc \
-        "https://github.com/AlexxIT/go2rtc/releases/latest/download/go2rtc_linux_${TARGETARCH}" \
-    && chmod +x /bin/go2rtc \
-    && mkdir -p /config && chown nobody:nogroup -R /config \
-    && apk del --purge .build-deps \
-    && rm -rf /root/.cache /root/.cargo /tmp/*
+        voluptuous
+
+# Install go2rtc
+RUN curl -fsSL -o /bin/go2rtc \
+        "https://github.com/AlexxIT/go2rtc/releases/latest/download/go2rtc_linux_${TARGETARCH}" && \
+    chmod +x /bin/go2rtc && \
+    mkdir -p /config && \
+    chown nobody:nogroup -R /config
+
+# Clean up
+RUN apk del --purge .build-deps && \
+    rm -rf /root/.cache /root/.cargo /tmp/*
 
 COPY . /
 
