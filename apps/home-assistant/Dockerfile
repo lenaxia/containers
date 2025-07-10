@@ -101,10 +101,12 @@ RUN \
         --find-links "https://pypi.org/simple/" \
         tiktoken \
     && \
+    uv pip install --index-url https://pypi.org/simple/ \
+        strands-agents>=0.2.0 \
+        'strands-agents[litellm]'
+    && \
     # Install other CortexAgent dependencies
     uv pip install \
-        strands-agents>=0.2.1 \
-        'strands-agents[litellm]' \
         strands-agents-tools \
         strands-agents-builder \
         pydantic>=2.0.0 \
