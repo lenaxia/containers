@@ -103,7 +103,7 @@ RUN \
     && \
     # Install other CortexAgent dependencies
     uv pip install \
-        strands-agents>=0.5.0 \
+        strands-agents>=0.2.1 \
         'strands-agents[litellm]' \
         strands-agents-tools \
         strands-agents-builder \
