@@ -103,7 +103,7 @@ RUN \
     && \
     uv pip install --index-url https://pypi.org/simple/ \
         strands-agents>=0.2.0 \
-        'strands-agents[litellm]'
+        'strands-agents[litellm]' \
     && \
     # Install other CortexAgent dependencies
     uv pip install \
