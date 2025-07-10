@@ -94,7 +94,28 @@ RUN \
     uv pip install ldap3 \
     && \
     uv pip install rpds-py \
-    && curl -fsSL -o /bin/go2rtc \
+    && \
+    # Install tiktoken from pre-compiled wheel
+    uv pip install --only-binary=:all: \
+        --find-links "https://wheels.home-assistant.io/musllinux/" \
+        --find-links "https://pypi.org/simple/" \
+        tiktoken \
+    && \
+    # Install other CortexAgent dependencies
+    uv pip install \
+        strands-agents>=0.5.0 \
+        'strands-agents[litellm]' \
+        strands-agents-tools \
+        strands-agents-builder \
+        pydantic>=2.0.0 \
+        boto3 \
+        anthropic>=0.52.0 \
+        mcp \
+        anyio>=4.9.0 \
+        aiohttp_sse>=2.2.0 \
+        voluptuous \
+    && \
+    curl -fsSL -o /bin/go2rtc \
         "https://github.com/AlexxIT/go2rtc/releases/latest/download/go2rtc_linux_${TARGETARCH}" \
     && chmod +x /bin/go2rtc \
     && mkdir -p /config && chown nobody:nogroup -R /config \
@@ -108,3 +129,4 @@ WORKDIR /config
 VOLUME ["/config"]
 
 ENTRYPOINT ["/usr/bin/catatonit", "--", "/entrypoint.sh"]
+
