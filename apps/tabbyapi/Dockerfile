@@ -1,5 +1,5 @@
 # Use an official CUDA runtime with Ubuntu as a parent image
-FROM nvidia/cuda:13.0.0-runtime-ubuntu22.04
+FROM nvidia/cuda:13.0.1-runtime-ubuntu22.04
 
 # Additional environment variables
 ENV \
