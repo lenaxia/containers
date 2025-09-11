@@ -39,16 +39,17 @@ RUN pip3 install --no-cache-dir --upgrade pip
 # Clone the repository
 RUN git clone https://github.com/theroyallab/tabbyAPI.git .
 
-# Install packages specified in pyproject.toml cu121
-RUN pip3 install --no-cache-dir .[cu121]
+# Install packages specified in pyproject.toml cu12
+RUN pip3 install --no-cache-dir .[cu12]
 
 # Make port 5000 available to the world outside this container
 EXPOSE 5000
 
-# Set the entry point
-ENTRYPOINT ["python3"]
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# Run main.py when the container launches
-CMD ["main.py", "--host", "0.0.0.0"]
+# Set the entry point
+ENTRYPOINT ["/entrypoint.sh"]
 
 LABEL org.opencontainers.image.source="https://github.com/theroyallab/tabbyAPI"
