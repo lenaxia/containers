@@ -214,6 +214,18 @@ jobs:
           DIGEST=$(docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/${{ inputs.app }}:${TAG} --format '{{ json . }}' | jq --raw-output '.manifest.digest')
           echo "digest=${DIGEST}" >> $GITHUB_OUTPUT
 
+      - name: Cleanup disk space before attestation
+        run: |
+          # Clean up Docker images and temporary files to free up disk space for SBOM generation
+          echo "Cleaning up disk space before attestation..."
+          docker system prune -af || true
+          sudo rm -rf /tmp/* || true
+          sudo rm -rf /var/tmp/* || true
+          # Also clean up any buildx cache
+          docker buildx prune -af || true
+          echo "Disk space after cleanup:"
+          df -h
+
   attest:
     if: ${{ inputs.release }}
     name: Attest
@@ -232,15 +244,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
 
-      - name: Cleanup disk space before SBOM generation
-        run: |
-          # Clean up Docker images and temporary files to free up disk space
-          docker system prune -f || true
-          sudo rm -rf /tmp/* || true
-          sudo rm -rf /var/tmp/* || true
-          df -h
-
       - name: Upload Dependency Snapshot
+        if: ${{ inputs.app != 'tabbyapi' }}  # Skip SBOM for CUDA images to avoid disk space issues
         uses: anchore/sbom-action@9f7302141466aa6482940f15371237e9d9f4c34a # v0.19.0
         with:
           dependency-snapshot: true
@@ -249,18 +254,36 @@ jobs:
           upload-artifact: false
           upload-release-assets: false
 
+      - name: Skip SBOM for CUDA images
+        if: ${{ inputs.app == 'tabbyapi' }}
+        run: |
+          echo "Skipping SBOM generation for tabbyapi (CUDA image) due to disk space constraints"
+          echo "CUDA images are too large for GitHub Actions disk space during SBOM generation"
+
       - name: Attestation
+        if: ${{ inputs.app != 'tabbyapi' }}  # Skip attestation for CUDA images since SBOM is skipped
         uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
         with:
           push-to-registry: true
           subject-name: ghcr.io/${{ github.repository_owner }}/${{ inputs.app }}
           subject-digest: ${{ needs.merge.outputs.digest }}
 
+      - name: Skip attestation for CUDA images
+        if: ${{ inputs.app == 'tabbyapi' }}
+        run: |
+          echo "Skipping attestation for tabbyapi since SBOM generation was skipped"
+
       - name: Verify Attestation
+        if: ${{ inputs.app != 'tabbyapi' }}  # Skip verification for CUDA images since attestation is skipped
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           gh attestation verify --repo ${{ github.repository }} oci://ghcr.io/${{ github.repository_owner }}/${{ inputs.app }}@${{ needs.merge.outputs.digest }}
+
+      - name: Skip verification for CUDA images
+        if: ${{ inputs.app == 'tabbyapi' }}
+        run: |
+          echo "Skipping attestation verification for tabbyapi"
 
   release:
     if: ${{ inputs.release && needs.prepare.outputs.app-exists != 'true' }}
