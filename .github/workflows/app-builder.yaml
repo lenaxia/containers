@@ -220,6 +220,11 @@ jobs:
     needs: ["merge"]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout (for local actions)
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
       - name: Login to GitHub Container Registry
         uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
@@ -227,11 +232,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
 
+      - name: Cleanup disk space before SBOM generation
+        run: |
+          # Clean up Docker images and temporary files to free up disk space
+          docker system prune -f || true
+          sudo rm -rf /tmp/* || true
+          sudo rm -rf /var/tmp/* || true
+          df -h
+
       - name: Upload Dependency Snapshot
         uses: anchore/sbom-action@9f7302141466aa6482940f15371237e9d9f4c34a # v0.19.0
         with:
           dependency-snapshot: true
           image: ghcr.io/${{ github.repository_owner }}/${{ inputs.app }}@${{ needs.merge.outputs.digest }}
+          # Skip artifact upload to reduce disk space usage for large images
+          upload-artifact: false
+          upload-release-assets: false
 
       - name: Attestation
         uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
@@ -296,6 +312,11 @@ jobs:
     name: Notify
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout (for local actions)
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
       - if: ${{ contains(needs.*.result, 'failure') }}
         name: Get Application Options
         id: app-options
