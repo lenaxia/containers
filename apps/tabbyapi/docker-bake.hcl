@@ -1,8 +1,8 @@
 target "docker-metadata-action" {}
 
 variable "VERSION" {
-  // renovate: datasource=github-tags depName=theroyallab/tabbyAPI
-  default = "0.1.0"
+  // renovate: datasource=git-refs depName=theroyallab/tabbyAPI
+  default = "main"
 }
 
 variable "SOURCE" {

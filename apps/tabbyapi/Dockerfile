@@ -37,7 +37,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip3 install --no-cache-dir --upgrade pip
 
 # Clone the repository
-RUN git clone https://github.com/theroyallab/tabbyAPI.git .
+RUN git clone --branch main https://github.com/theroyallab/tabbyAPI.git .
 
 # Install packages specified in pyproject.toml cu12
 RUN pip3 install --no-cache-dir .[cu12]
