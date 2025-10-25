@@ -15,7 +15,7 @@ jobs:
       apps: ${{ steps.inventory.outputs.apps }}
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           persist-credentials: false
 
@@ -35,12 +35,12 @@ jobs:
       fail-fast: false
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           persist-credentials: false
 
       - name: Generate Token
-        uses: actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e # v2.0.6
+        uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
         id: app-token
         with:
           app-id: ${{ secrets.BOT_APP_ID }}
@@ -50,7 +50,7 @@ jobs:
         uses: sigstore/cosign-installer@3454372f43399081ed03b604cb2d021dabca52bb # v3.8.2
 
       - name: Install regctl
-        uses: regclient/actions/regctl-installer@4d6888fcc4842c9630f60ebc91715a45dd9bd7a3 # main
+        uses: regclient/actions/regctl-installer@e90c98f47ac2fead0ab3cf8d7a59c5e6fc3b87d2 # main
 
       - name: Get Bake Options
         id: app-options

@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1
 
-FROM docker.io/library/golang:1.24-alpine AS builder
+FROM docker.io/library/golang:1.25-alpine AS builder
 ARG VERSION
 ENV CGO_ENABLED=0
 RUN go install -a -ldflags "-X=main.volsyncVersion=${VERSION}" github.com/backube/volsync@${VERSION}
 
-FROM docker.io/library/alpine:3.21
+FROM docker.io/library/alpine:3.22
 ARG VERSION
 RUN \
     apk add --no-cache \
@@ -25,7 +25,7 @@ RUN \
         && cp /tmp/mover-restic/entry.sh /mover-restic/ \
         && chmod a+rx /mover-restic/*.sh \
     && rm -rf /tmp/*
-COPY --from=ghcr.io/rclone/rclone:1.69.2 /usr/local/bin/rclone /usr/local/bin/rclone
+COPY --from=ghcr.io/rclone/rclone:1.71.0 /usr/local/bin/rclone /usr/local/bin/rclone
 COPY --from=docker.io/restic/restic:0.18.0 /usr/bin/restic /usr/local/bin/restic
 COPY --from=builder /go/bin/volsync /manager
 ENTRYPOINT ["/bin/bash"]

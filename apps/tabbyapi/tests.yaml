@@ -1,0 +1,18 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/goss-org/goss/master/docs/schema.yaml
+process:
+  python3.11:
+    running: true
+file:
+  /usr/bin/python3.11:
+    exists: true
+  /usr/bin/python3:
+    exists: true
+port:
+  tcp:5000:
+    listening: true
+http:
+  http://localhost:5000/health:
+    status: 200
+    timeout: 10000
+    allow-insecure: true
