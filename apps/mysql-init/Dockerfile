@@ -1,20 +1,21 @@
-FROM debian:bullseye-slim
+# syntax=docker/dockerfile:1
+
+FROM docker.io/library/alpine:3.22
+ARG VERSION
 
 USER root
 
-# Install required packages
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+RUN \
+    apk add --no-cache \
+        bash \
         ca-certificates \
         catatonit \
-        default-mysql-client \
-    && rm -rf /var/lib/apt/lists/*
+        mysql-client \
+    && rm -rf /tmp/*
 
-# Copy the entrypoint script and initdb directory
 COPY entrypoint.sh /entrypoint.sh
 COPY initdb /initdb
 
-# Make the script executable and ensure proper permissions
 RUN chmod +x /entrypoint.sh && \
     mkdir -p /initdb && \
     chown -R nobody:nogroup /initdb && \
