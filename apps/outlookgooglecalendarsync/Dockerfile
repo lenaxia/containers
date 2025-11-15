@@ -1,46 +1,54 @@
-# Base image
+# Use VERSION passed by bake
+ARG VERSION
 FROM ghcr.io/linuxserver/baseimage-kasmvnc:ubuntunoble
 
-ARG VERSION="3.0.0.30"
 LABEL maintainer="mail@suki.buzz"
 
-ENV WINEDLLOVERRIDES="mscoree,mshtml=" \
-    WINEDEBUG="-all" \
+# Wine environment variables
+ENV WINEPREFIX=/config/wine \
+    WINEARCH=win32 \
     HOME=/config \
-    DISPLAY=:1
+    WINEDLLOVERRIDES="mscoree,mshtml=" \
+    WINEDEBUG="-all"
 
-# Install Wine, Firefox, and required tools
+# Add i386 architecture for Wine and install dependencies + Firefox (deb)
 RUN dpkg --add-architecture i386 && \
     apt-get update && \
-    apt-get install -y --no-install-recommends \
-        wine64 \
-        winetricks \
-        p7zip-full \
-        wget \
-        unzip \
-        inotify-tools \
-        rsync \
-        openbox \
-        firefox \
+    apt-get install -y wget gpg && \
+    install -d -m 0755 /etc/apt/keyrings && \
+    wget -qO- https://packages.mozilla.org/apt/repo-signing-key.gpg | gpg --dearmor > /etc/apt/keyrings/packages.mozilla.org.gpg && \
+    printf "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.gpg] https://packages.mozilla.org/apt mozilla main\n" \
+      > /etc/apt/sources.list.d/mozilla.list && \
+    apt-get update && \
+    apt-get install -y \
+      wine64 \
+      wine32:i386 \
+      wine32-preloader \
+      winetricks \
+      p7zip-full \
+      unzip \
+      curl \
+      rsync \
+      openbox \
+      inotify-tools \
+      firefox \
     && rm -rf /var/lib/apt/lists/*
 
-# Create necessary directories
-RUN mkdir -p /downloads /app/OGCS-dist /app/OGCS-runtime /config
+# Prepare directories
+RUN mkdir -p /app/OGCS-dist /config /downloads
 
-# Download and extract OGCS portable
+WORKDIR /app/OGCS-dist
+
+# Download OGCS portable ZIP into staging folder
 RUN wget -O /downloads/OGCS.zip \
-    "https://github.com/user-attachments/files/22068496/Portable_OGCS_v${VERSION}.zip" && \
+    "https://github.com/user-attachments/files/22068496/Portable_OGCS_v3.0.0.30.zip" && \
     7z x /downloads/OGCS.zip -o/app/OGCS-dist && \
     rm /downloads/OGCS.zip
 
-# Copy helper scripts for staging
-COPY scripts/ /app/scripts/
-RUN chmod +x /app/scripts/*.sh
+# Copy entrypoint
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# Setup container entrypoint to copy staging folder to runtime folder
-ENTRYPOINT ["/app/scripts/entrypoint.sh"]
-
-# Expose VNC port for Kasm if needed
 EXPOSE 3000
 
-VOLUME /config
+ENTRYPOINT ["/entrypoint.sh"]
