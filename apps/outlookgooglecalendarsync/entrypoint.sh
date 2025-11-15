@@ -1,17 +1,16 @@
 #!/bin/bash
 set -e
 
-# Ensure /config exists (mounted volume)
 mkdir -p /config
 
-# Copy files from staging folder if they are not already present in /config
+# Copy OGCS portable files to /config on first run
 if [ ! -f /config/OutlookGoogleCalendarSync.exe ]; then
-    echo "Copying OGCS files to /config..."
+    echo "Initializing OGCS in /config..."
     cp -r /app/OGCS-dist/* /config/
 fi
 
-# Initialize Wine prefix if needed
+# Initialize wine prefix
 wineboot --init || true
 
-# Launch OGCS under Wine
+# Launch OGCS
 exec wine /config/OutlookGoogleCalendarSync.exe
