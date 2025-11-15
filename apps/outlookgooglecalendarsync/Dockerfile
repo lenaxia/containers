@@ -1,4 +1,4 @@
-# Use VERSION passed by bake (e.g., v3.0.0.30)
+# Use VERSION passed by bake
 ARG VERSION
 FROM ghcr.io/linuxserver/baseimage-kasmvnc:ubuntunoble
 
@@ -11,12 +11,30 @@ ENV WINEPREFIX=/config/wine \
     WINEDLLOVERRIDES="mscoree,mshtml=" \
     WINEDEBUG="-all"
 
-# Install Wine + tools + Firefox
-RUN apt-get update && \
-    apt-get install -y wine64 wine32 winetricks p7zip-full wget curl unzip inotify-tools rsync openbox firefox-esr && \
-    rm -rf /var/lib/apt/lists/*
+# Add i386 architecture for Wine and install dependencies + Firefox (deb)
+RUN dpkg --add-architecture i386 && \
+    apt-get update && \
+    apt-get install -y wget gpg && \
+    install -d -m 0755 /etc/apt/keyrings && \
+    wget -qO- https://packages.mozilla.org/apt/repo-signing-key.gpg | gpg --dearmor > /etc/apt/keyrings/packages.mozilla.org.gpg && \
+    printf "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.gpg] https://packages.mozilla.org/apt mozilla main\n" \
+      > /etc/apt/sources.list.d/mozilla.list && \
+    apt-get update && \
+    apt-get install -y \
+      wine64 \
+      wine32:i386 \
+      wine32-preloader \
+      winetricks \
+      p7zip-full \
+      unzip \
+      curl \
+      rsync \
+      openbox \
+      inotify-tools \
+      firefox \
+    && rm -rf /var/lib/apt/lists/*
 
-# Prepare dirs
+# Prepare directories
 RUN mkdir -p /app/OGCS-dist /config /downloads
 
 WORKDIR /app/OGCS-dist
