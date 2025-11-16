@@ -20,6 +20,15 @@ if [ ! -d "/config/.wine" ] || [ ! -f "/config/.wine/system.reg" ]; then
         export HOME=/config
         export DISPLAY=:1
         wineboot --init
+        
+        # Install Wine Mono if not already installed
+        if [ ! -d "/config/.wine/drive_c/windows/mono" ]; then
+            echo "Installing Wine Mono..."
+            MONO_MSI=$(ls /usr/share/wine/mono/wine-mono-*.msi 2>/dev/null | head -1)
+            if [ -n "$MONO_MSI" ]; then
+                wine msiexec /i "$MONO_MSI" /qn
+            fi
+        fi
     ' abc
     chown abc:abc /config -R
 fi
