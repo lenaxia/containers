@@ -11,25 +11,34 @@ if [ ! -f "/config/OutlookGoogleCalendarSync.exe" ]; then
     chown abc:abc /config -R
 fi
 
-# Initialize Wine prefix as the abc user if needed
+# Initialize Wine prefix and install Mono as the abc user
 if [ ! -d "/config/.wine" ] || [ ! -f "/config/.wine/system.reg" ]; then
     echo "Initializing Wine prefix..."
-    su -s /bin/bash -c '
+    su -s /bin/bash abc << 'EOF'
         export WINEPREFIX=/config/.wine
         export WINEARCH=win64
         export HOME=/config
         export DISPLAY=:1
+        
+        echo "Creating Wine prefix..."
         wineboot --init
         
-        # Install Wine Mono if not already installed
+        echo "Waiting for wineboot to complete..."
+        sleep 5
+        
         if [ ! -d "/config/.wine/drive_c/windows/mono" ]; then
             echo "Installing Wine Mono..."
             MONO_MSI=$(ls /usr/share/wine/mono/wine-mono-*.msi 2>/dev/null | head -1)
             if [ -n "$MONO_MSI" ]; then
+                echo "Found Mono MSI: $MONO_MSI"
                 wine msiexec /i "$MONO_MSI" /qn
+                echo "Waiting for Mono installation to complete..."
+                sleep 10
+            else
+                echo "ERROR: Wine Mono MSI not found!"
             fi
         fi
-    ' abc
+EOF
     chown abc:abc /config -R
 fi
 
