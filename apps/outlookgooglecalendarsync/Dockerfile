@@ -22,7 +22,7 @@ RUN \
   apt-get install -y \
     --install-recommends \
     winehq-stable \
-    winetricks \
+    wine-mono \
     p7zip-full \
     inotify-tools \
     rsync \

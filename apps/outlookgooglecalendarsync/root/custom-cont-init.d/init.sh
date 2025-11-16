@@ -11,16 +11,15 @@ if [ ! -f "/config/OutlookGoogleCalendarSync.exe" ]; then
     chown abc:abc /config -R
 fi
 
-# Initialize Wine as the abc user
-if [ ! -d "/config/wine" ] || [ ! -f "/config/wine/system.reg" ]; then
+# Initialize Wine prefix as the abc user if needed
+if [ ! -d "/config/.wine" ] || [ ! -f "/config/.wine/system.reg" ]; then
     echo "Initializing Wine prefix..."
     su -s /bin/bash -c '
-        export WINEPREFIX=/config/wine
+        export WINEPREFIX=/config/.wine
         export WINEARCH=win64
         export HOME=/config
+        export DISPLAY=:1
         wineboot --init
-        echo "Installing Wine Mono for .NET support..."
-        winetricks -q mono || true
     ' abc
     chown abc:abc /config -R
 fi
