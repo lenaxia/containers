@@ -56,7 +56,7 @@
       matchFileNames: ["**/docker-bake.hcl"],
       automerge: true,
       automergeType: "pr",
-      ignoreTests: false,
+      ignoreTests: true,
     },
     {
       description: ["Allowed Ubuntu Version for Base Images"],
