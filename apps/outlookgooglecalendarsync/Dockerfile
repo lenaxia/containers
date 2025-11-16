@@ -30,16 +30,15 @@ RUN \
   rm -rf /var/lib/apt/lists/*
 
 RUN \
-  echo "Fetching latest Wine Mono version..." && \
-  WINE_MONO_VERSION=$(curl -s https://dl.winehq.org/wine/wine-mono/ | \
-    grep -oP 'wine-mono-\K[0-9]+\.[0-9]+\.[0-9]+' | \
-    sort -V | tail -1) && \
-  echo "Installing Wine Mono ${WINE_MONO_VERSION}..." && \
-  wget -O /tmp/wine-mono.msi \
-    "https://dl.winehq.org/wine/wine-mono/${WINE_MONO_VERSION}/wine-mono-${WINE_MONO_VERSION}-x86.msi" && \
+  echo "Fetching Wine Mono version from Wine source..." && \
+  WINE_VER=$(wine --version | grep -oP 'wine-\K[0-9]+\.[0-9]+' | head -1) && \
+  echo "Wine version: ${WINE_VER}" && \
+  WINE_MONO_VERSION=$(wget -q -O- "https://raw.githubusercontent.com/wine-mirror/wine/wine-${WINE_VER}/dlls/appwiz.cpl/addons.c" | \
+    grep -E "^#define MONO_VERSION\s" | awk -F\" '{print $2}') && \
+  echo "Wine Mono version: ${WINE_MONO_VERSION}" && \
   mkdir -p /usr/share/wine/mono && \
-  cp /tmp/wine-mono.msi /usr/share/wine/mono/wine-mono-${WINE_MONO_VERSION}.msi && \
-  rm /tmp/wine-mono.msi
+  wget -nv -O "/usr/share/wine/mono/wine-mono-${WINE_MONO_VERSION}-x86.msi" \
+    "https://dl.winehq.org/wine/wine-mono/${WINE_MONO_VERSION}/wine-mono-${WINE_MONO_VERSION}-x86.msi"
 
 RUN \
   mkdir -p /app/OGCS && \
