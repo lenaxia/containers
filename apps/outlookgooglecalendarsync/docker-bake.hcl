@@ -17,7 +17,7 @@ target "image" {
   inherits = ["docker-metadata-action"]
 
   args = {
-    VERSION = "${VERSION}"
+    OGCS_VERSION = "${VERSION}"
   }
 
   labels = {
