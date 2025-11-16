@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 FROM ghcr.io/linuxserver/baseimage-kasmvnc:ubuntunoble
 
 ARG OGCS_VERSION="3.0.0.30"
@@ -20,9 +22,11 @@ RUN \
   apt-get install -y \
     --install-recommends \
     winehq-stable \
+    winetricks \
     p7zip-full \
     inotify-tools \
     rsync \
+    python3-pyxdg \
     openbox && \
   rm -rf /var/lib/apt/lists/*
 
