@@ -1,6 +1,6 @@
 #! /bin/bash
 # Give desktop time to start
-sleep 10
+sleep 5
 
 export WINEPREFIX=/config/.wine
 export WINEARCH=win64
@@ -8,4 +8,4 @@ export HOME=/config
 export DISPLAY=:1
 
 cd /config
-nohup wine OutlookGoogleCalendarSync.exe &>/config/ogcs.log &
+wine OutlookGoogleCalendarSync.exe
