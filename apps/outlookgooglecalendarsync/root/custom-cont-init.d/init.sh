@@ -2,33 +2,30 @@
 set -e
 
 # Ensure correct ownership (using default LinuxServer user "abc")
-chown abc:abc /config -R
-chown abc:abc /app/OGCS -R
+chown -R abc:abc /config
+chown -R abc:abc /app/OGCS
 
-# Run as abc user for Wine operations
-su -s /bin/bash abc << 'EOF'
+# Run Wine setup and copy OGCS as user abc
+su - abc -s /bin/bash <<'EOF'
 export WINEPREFIX=/config/.wine
 export WINEARCH=win64
 export HOME=/config
-export DISPLAY=:1
 
-# If prefix is uninitialized, do it and install .NET
+# Initialize Wine prefix if missing
 if [ ! -f "$WINEPREFIX/system.reg" ]; then
-  echo "Initializing Wine prefix..."
-  wineboot --init
-  sleep 5
+    echo "Initializing Wine prefix..."
+    wineboot --init
+    sleep 5
 
-  echo "Installing .NET Framework 4.6.2..."
-  winetricks -q dotnet462
-
-  echo "Waiting for .NET install to finish..."
-  sleep 10
+    echo "Installing .NET Framework 4.6.2..."
+    winetricks -q dotnet462
+    sleep 10
 fi
 
-# On first run, copy OGCS
+# Copy OGCS to /config on first run
 if [ ! -f "/config/OutlookGoogleCalendarSync.exe" ]; then
-  echo "Copying OGCS into /config..."
-  cp -r /app/OGCS/* /config/
-  chown abc:abc /config -R
+    echo "Copying OGCS into /config..."
+    cp -r /app/OGCS/* /config/
+    chown -R abc:abc /config
 fi
-
+EOF
