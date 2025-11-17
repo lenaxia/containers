@@ -23,7 +23,7 @@ RUN apt-get update && \
 
 # Download OGCS portable
 RUN mkdir -p /app/OGCS && \
-    wget -O /tmp/OGCS.zip "https://github.com/user‑attachments/files/22068496/Portable_OGCS_v3.0.0.30.zip" && \
+    wget -O /tmp/OGCS.zip "https://github.com/user-attachments/files/22068496/Portable_OGCS_v3.0.0.30.zip" && \
     7z x /tmp/OGCS.zip -o/app/OGCS && \
     rm /tmp/OGCS.zip
 
