@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
-# Ensure correct ownership (using default LinuxServer user "abc")
-chown -R abc:abc /config
-chown -R abc:abc /app/OGCS
+# Ensure PVC is owned by container UID
+chown -R 1000:1000 /config
+chown -R 1000:1000 /app/OGCS
 
-# Run Wine setup and copy OGCS as user abc
-su - abc -s /bin/bash <<'EOF'
 export WINEPREFIX=/config/.wine
 export WINEARCH=win64
 export HOME=/config
@@ -22,10 +20,9 @@ if [ ! -f "$WINEPREFIX/system.reg" ]; then
     sleep 10
 fi
 
-# Copy OGCS to /config on first run
+# Copy OGCS portable to /config on first run
 if [ ! -f "/config/OutlookGoogleCalendarSync.exe" ]; then
     echo "Copying OGCS into /config..."
     cp -r /app/OGCS/* /config/
-    chown -R abc:abc /config
+    chown -R 1000:1000 /config
 fi
-EOF
