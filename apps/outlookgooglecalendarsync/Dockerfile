@@ -21,6 +21,11 @@ RUN apt-get update && \
     apt-get install -y --install-recommends winehq-stable winetricks && \
     rm -rf /var/lib/apt/lists/*
 
+# Install Openbox dependencies and PyXDG
+RUN apt-get update && \
+    apt-get install -y python3 python3-pip openbox && \
+    pip3 install --no-cache-dir pyxdg
+
 # Download OGCS portable
 RUN mkdir -p /app/OGCS && \
     wget -O /tmp/OGCS.zip "https://github.com/user-attachments/files/22068496/Portable_OGCS_v3.0.0.30.zip" && \
