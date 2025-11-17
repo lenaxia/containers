@@ -27,7 +27,7 @@ RUN mkdir -p /app/OGCS && \
     7z x /tmp/OGCS.zip -o/app/OGCS && \
     rm /tmp/OGCS.zip
 
-# Copy init script and autostart default
+# Copy initialization script and defaults
 COPY root/ /
 
 VOLUME /config
