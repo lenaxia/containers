@@ -10,13 +10,9 @@ ENV WINEDLLOVERRIDES="mscoree,mshtml=" \
     WINEPREFIX=/config/.wine \
     WINEARCH=win64
 
-# Fix /tmp/.X11-unix for non-root X server
-USER root
-RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
-
 # Install dependencies
-RUN dpkg --add-architecture i386 && \
-    apt-get update && \
+RUN apt-get update && \
+    dpkg --add-architecture i386 && \
     apt-get install -y wget curl gnupg2 software-properties-common p7zip-full inotify-tools rsync openbox python3 python3-xdg && \
     mkdir -pm755 /etc/apt/keyrings && \
     wget -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key && \
@@ -31,11 +27,14 @@ RUN mkdir -p /app/OGCS && \
     7z x /tmp/OGCS.zip -o/app/OGCS && \
     rm /tmp/OGCS.zip
 
-# Copy init scripts and autostart
+# Copy initialization scripts and defaults
 COPY root/ /
 
+# Pre-create nginx temp dir (writable)
+RUN mkdir -p /var/lib/nginx/body && chown -R 1000:1000 /var/lib/nginx /config
+
 VOLUME /config
+
 EXPOSE 3000
 
-# Switch back to default user
-USER abc
+# Use the baseimage's /init entrypoint (don't override)
