@@ -12,9 +12,6 @@ if [ ! -f "$WINEPREFIX/system.reg" ]; then
     rm -rf "$WINEPREFIX"
     mkdir -p "$WINEPREFIX"
 
-    # Preallocate larger C: drive using WINEPREFIX env
-    s6-setuidgid abc wineboot --init
-
     # Winetricks .NET and fonts
     echo "Installing .NET 4.6.2..."
     s6-setuidgid abc winetricks -q dotnet462 corefonts
