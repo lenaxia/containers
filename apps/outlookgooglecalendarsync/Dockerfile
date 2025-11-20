@@ -4,26 +4,28 @@ FROM ghcr.io/linuxserver/baseimage-kasmvnc:ubuntunoble
 ARG OGCS_VERSION="3.0.0.30"
 LABEL maintainer="mail@suki.buzz"
 
-ENV WINEDLLOVERRIDES="mscoree,mshtml=" \
-    WINEDEBUG="-all" \
-    HOME=/config \
+ENV HOME=/config \
     WINEPREFIX=/config/.wine \
-    WINEARCH=win64
+    WINEARCH=win32 \
+    DISPLAY=:0 \
+    WINEDLLOVERRIDES="mscoree,mshtml=" \
+    WINEDEBUG="-all"
 
-# Install dependencies
-RUN apt-get update && \
-    dpkg --add-architecture i386 && \
-    apt-get install -y wget curl gnupg2 software-properties-common p7zip-full inotify-tools rsync openbox python3 python3-xdg && \
-    mkdir -pm755 /etc/apt/keyrings && \
-    wget -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key && \
-    wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/noble/winehq-noble.sources && \
+# Install dependencies, Wine, and Winetricks
+RUN dpkg --add-architecture i386 && \
     apt-get update && \
-    apt-get install -y --install-recommends winehq-stable winetricks && \
+    apt-get install -y wget curl gnupg2 software-properties-common p7zip-full inotify-tools rsync openbox python3 python3-xdg xvfb winehq-stable winetricks && \
     rm -rf /var/lib/apt/lists/*
+
+# Initialize Wine prefix and install .NET 4.5
+RUN mkdir -p $WINEPREFIX && \
+    wineboot --init && \
+    winetricks -q dotnet45 corefonts && \
+    while pgrep wineserver >/dev/null; do sleep 1; done
 
 # Download OGCS portable
 RUN mkdir -p /app/OGCS && \
-    wget -O /tmp/OGCS.zip "https://github.com/user-attachments/files/22068496/Portable_OGCS_v3.0.0.30.zip" && \
+    wget -O /tmp/OGCS.zip "https://github.com/user-attachments/files/22068496/Portable_OGCS_v${OGCS_VERSION}.zip" && \
     7z x /tmp/OGCS.zip -o/app/OGCS && \
     rm /tmp/OGCS.zip
 
@@ -34,7 +36,5 @@ COPY root/ /
 RUN mkdir -p /var/lib/nginx/body && chown -R 1000:1000 /var/lib/nginx /config
 
 VOLUME /config
-
 EXPOSE 3000
 
-# Use the baseimage's /init entrypoint (don't override)
