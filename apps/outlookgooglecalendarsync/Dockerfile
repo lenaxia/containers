@@ -23,8 +23,8 @@ RUN dpkg --add-architecture i386 && \
     apt-get install -y --install-recommends winehq-stable winetricks && \
     rm -rf /var/lib/apt/lists/*
 
-# Initialize Wine prefix and install .NET 4.5 + core fonts
-RUN mkdir -p $WINEPREFIX && \
+# Create a fresh 32-bit Wine prefix and install .NET 4.5 + core fonts
+RUN rm -rf /config/.wine && \
     wineboot --init && \
     winetricks -q dotnet45 corefonts && \
     while pgrep wineserver >/dev/null; do sleep 1; done
