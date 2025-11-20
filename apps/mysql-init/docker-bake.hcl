@@ -2,7 +2,7 @@ target "docker-metadata-action" {}
 
 variable "VERSION" {
   // renovate: datasource=repology depName=alpine_3_22/mysql-client versioning=loose
-  default = "10.11.10-r0"
+  default = "11.4.8-r0"
 }
 
 variable "SOURCE" {
