@@ -1,11 +1,11 @@
 #! /bin/bash
-# Give desktop time to start
 sleep 5
 
-export WINEPREFIX=/config/.wine
-export WINEARCH=win64
 export HOME=/config
+export WINEPREFIX=/config/.wine
+export WINEARCH=win32
 export DISPLAY=:1
 
 cd /config
 wine OutlookGoogleCalendarSync.exe
+
