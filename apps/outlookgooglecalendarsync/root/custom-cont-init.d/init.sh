@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
-# Ensure PVC is owned by container UID
-chown -R 1000:1000 /config
-chown -R 1000:1000 /app/OGCS
-
+# Set environment variables
 export WINEPREFIX=/config/.wine
-export WINEARCH=win64
+export WINEARCH=win32   # OGCS 4.5/.NET 4.6.2 works better in 32-bit
 export HOME=/config
+export DISPLAY=:1
 
 # Initialize Wine prefix if missing
 if [ ! -f "$WINEPREFIX/system.reg" ]; then
@@ -20,9 +18,10 @@ if [ ! -f "$WINEPREFIX/system.reg" ]; then
     sleep 10
 fi
 
-# Copy OGCS portable to /config on first run
+# Copy OGCS portable to /config on first run if missing
 if [ ! -f "/config/OutlookGoogleCalendarSync.exe" ]; then
     echo "Copying OGCS into /config..."
     cp -r /app/OGCS/* /config/
-    chown -R 1000:1000 /config
 fi
+
+# Note: Do NOT attempt chown, rely on fsGroup to ensure container user has permissions
