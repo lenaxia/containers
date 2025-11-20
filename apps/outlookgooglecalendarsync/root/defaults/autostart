@@ -4,7 +4,7 @@ sleep 5
 export HOME=/config
 export WINEPREFIX=/config/.wine
 export WINEARCH=win32
-export DISPLAY=:1
+export DISPLAY=:0
 
 cd /config
 wine OutlookGoogleCalendarSync.exe
