@@ -246,7 +246,7 @@ jobs:
 
       - name: Upload Dependency Snapshot
         if: ${{ inputs.app != 'tabbyapi' }}  # Skip SBOM for CUDA images to avoid disk space issues
-        uses: anchore/sbom-action@fbfd9c6c189226748411491745178e0c2017392d # v0.20.10
+        uses: anchore/sbom-action@43a17d6e7add2b5535efe4dcae9952337c479a93 # v0.20.11
         with:
           dependency-snapshot: true
           image: ghcr.io/${{ github.repository_owner }}/${{ inputs.app }}@${{ needs.merge.outputs.digest }}
