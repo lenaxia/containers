@@ -2,7 +2,7 @@ target "docker-metadata-action" {}
 
 variable "VERSION" {
   // renovate: datasource=github-releases depName=containernetworking/plugins
-  default = "v1.8.0"
+  default = "v1.9.0"
 }
 
 variable "SOURCE" {
