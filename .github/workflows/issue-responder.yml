@@ -12,10 +12,18 @@ jobs:
       issues: write
       pull-requests: write
     steps:
+      - name: Generate GitHub App Token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
+        id: app-token
+        with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Install OpenCode CLI
         run: |
@@ -30,8 +38,8 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_API_BASE: ${{ secrets.OPENAI_API_BASE }}
           OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
@@ -107,7 +115,9 @@ jobs:
           
           if [[ "$COMMENTS_AFTER" -eq 0 ]]; then
             echo "WARNING: No response posted. Adding fallback..."
-            gh issue comment "${ISSUE_NUMBER}" --body "Thank you for opening this issue! It will be reviewed by maintainers soon."
+            gh issue comment "${ISSUE_NUMBER}" --body "Thank you for opening this issue! It will be reviewed by maintainers soon.
+
+Note: The automated triage system encountered an issue. A maintainer will manually review and label this issue."
           else
             echo "✓ AI response posted"
           fi
