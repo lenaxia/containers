@@ -19,8 +19,13 @@ To use these workflows, you need to set up the following GitHub secrets:
 - `OPENAI_API_KEY` - Your OpenAI API key (or compatible API key for local LLM)
 - `OPENAI_API_BASE` - The API base URL (e.g., `https://api.openai.com/v1` for OpenAI, or your local LLM endpoint)
 - `OPENAI_MODEL` - The model to use (e.g., `gpt-4`, `claude-sonnet-4`, or your local model name)
+- `OPENCODE_GITHUB_TOKEN` - A GitHub Personal Access Token with `repo` scope (required for OpenCode GitHub integration)
 
-The `GITHUB_TOKEN` is automatically provided by GitHub Actions.
+**Note on GitHub Token:** The built-in `GITHUB_TOKEN` provided by GitHub Actions doesn't work with OpenCode's GitHub integration. You need to create a Personal Access Token:
+
+1. Go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)
+2. Generate a new token with `repo` scope (full control of private repositories)
+3. Add it as a secret named `OPENCODE_GITHUB_TOKEN` in your repository settings
 
 ### Optional Notification Secrets
 
