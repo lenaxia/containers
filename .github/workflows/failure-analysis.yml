@@ -70,6 +70,7 @@ jobs:
           OPENAI_API_BASE: ${{ secrets.OPENAI_API_BASE }}
           OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WORKFLOW_NAME: ${{ steps.workflow-details.outputs.workflow_name }}
           RUN_URL: ${{ steps.workflow-details.outputs.run_url }}
           HAS_EXISTING: ${{ steps.check-issue.outputs.has_existing }}
