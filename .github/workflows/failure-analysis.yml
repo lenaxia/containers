@@ -1,0 +1,341 @@
+name: Failure Analysis
+
+on:
+  workflow_run:
+    workflows: ["Build Apps", "Release", "Retry Release"]
+    types: [completed]
+
+jobs:
+  analyze-failure:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get workflow run details
+        id: workflow-details
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get workflow run info
+          RUN_ID=${{ github.event.workflow_run.id }}
+          WORKFLOW_NAME="${{ github.event.workflow_run.name }}"
+          RUN_URL="${{ github.event.workflow_run.html_url }}"
+          
+          echo "run_id=${RUN_ID}" >> $GITHUB_OUTPUT
+          echo "workflow_name=${WORKFLOW_NAME}" >> $GITHUB_OUTPUT
+          echo "run_url=${RUN_URL}" >> $GITHUB_OUTPUT
+          
+          # Get workflow run logs
+          gh run view ${RUN_ID} --log > workflow.log 2>&1 || echo "Failed to fetch logs" > workflow.log
+          
+          # Get last 1000 lines to keep manageable
+          tail -n 1000 workflow.log > workflow-errors.log
+
+      - name: Check for existing issue
+        id: check-issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Search for open issues with ci-failure label for this workflow
+          WORKFLOW_NAME="${{ steps.workflow-details.outputs.workflow_name }}"
+          WORKFLOW_LABEL="workflow:$(echo ${WORKFLOW_NAME} | tr ' ' '-' | tr '[:upper:]' '[:lower:]')"
+          
+          EXISTING_ISSUE=$(gh issue list --label "ci-failure" --label "${WORKFLOW_LABEL}" --state open --json number --jq '.[0].number' 2>/dev/null || echo "")
+          
+          if [ -n "$EXISTING_ISSUE" ]; then
+            echo "existing_issue=${EXISTING_ISSUE}" >> $GITHUB_OUTPUT
+            echo "has_existing=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_existing=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install OpenCode CLI
+        run: |
+          curl -fsSL https://opencode.ai/install | bash
+          echo "$HOME/.opencode/bin" >> $GITHUB_PATH
+
+      - name: Create temp directory
+        run: mkdir -p .tmp
+
+      - name: Analyze failure
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_API_BASE: ${{ secrets.OPENAI_API_BASE }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOW_NAME: ${{ steps.workflow-details.outputs.workflow_name }}
+          RUN_URL: ${{ steps.workflow-details.outputs.run_url }}
+          HAS_EXISTING: ${{ steps.check-issue.outputs.has_existing }}
+          EXISTING_ISSUE: ${{ steps.check-issue.outputs.existing_issue }}
+        run: |
+          # Read the error logs
+          ERROR_LOGS=$(cat workflow-errors.log)
+          
+          # Create prompt
+          cat > .tmp/failure-prompt.txt <<PROMPT_EOF
+          You are an AI assistant analyzing CI/CD workflow failures for a container images repository.
+
+          Workflow Failure Information:
+          - Workflow: ${WORKFLOW_NAME}
+          - Run URL: ${RUN_URL}
+          - Has existing issue: ${HAS_EXISTING}
+          - Existing issue number: ${EXISTING_ISSUE}
+
+          ERROR LOGS (last 1000 lines):
+          
+          ${ERROR_LOGS}
+          
+          ===================================
+
+          Repository Context:
+          This repository builds container images. Common failure types:
+          - Build failures due to upstream package unavailability
+          - Container registry issues
+          - Network timeouts
+          - Test failures
+          - Dependency resolution problems
+          - Base image changes breaking builds
+
+          Your Tasks:
+
+          1. Analyze the error logs to identify:
+             - Root cause of the failure
+             - Which container(s) or job(s) failed
+             - Error messages and stack traces
+             - Whether transient or persistent issue
+
+          2. Categorize the failure:
+             - TRANSIENT: Network issues, timeouts (likely succeeds on retry)
+             - DEPENDENCY: Upstream package/image issues
+             - CODE: Issues with Dockerfiles or build scripts
+             - INFRA: GitHub Actions infrastructure issues
+             - UNKNOWN: Cannot determine from logs
+
+          3. Determine severity:
+             - P0 (Critical): Blocks all builds, security issue
+             - P1 (High): Blocks specific container builds
+             - P2 (Medium): Intermittent issues
+             - P3 (Low): Non-blocking issues
+
+          4. Take action based on existing issue:
+             
+             If HAS_EXISTING is true:
+               - Use github_add_issue_comment to add comment to issue ${EXISTING_ISSUE} with:
+                 * Link to the failed run
+                 * Brief summary of this failure
+                 * Note if same root cause or new issue
+                 * Pattern analysis (frequency)
+             
+             If HAS_EXISTING is false:
+               - Use github_issue_write with method create to create new issue with:
+                 * Title: [CI Failure] ${WORKFLOW_NAME} - <brief description>
+                 * Body with:
+                   - Workflow run link
+                   - Root cause analysis
+                   - Key error excerpts (not full logs)
+                   - Suggested fix or investigation steps
+                   - Impact assessment
+                 * Labels: ci-failure, workflow label, severity label (P0-P3)
+
+          5. For TRANSIENT failures:
+             - Note that retry might resolve it
+             - Suggest monitoring for patterns
+
+          6. For CODE failures:
+             - Identify specific file(s) needing attention
+             - Provide actionable fix suggestions
+
+          CRITICAL RULES:
+          - ALWAYS post either a new issue or comment on existing issue
+          - Be concise and actionable
+          - Focus on helping maintainers quickly understand and resolve
+          - Include relevant error excerpts, not entire logs
+          - Reference specific files/lines when possible
+
+          Now analyze the failure and take action.
+          PROMPT_EOF
+          
+          # Run opencode
+          opencode run "$(cat .tmp/failure-prompt.txt)"
+          
+          # Verify response
+          echo "Verifying AI response..."
+          sleep 2
+          
+          if [ "${HAS_EXISTING}" = "true" ]; then
+            # Check if comment was added
+            COMMENTS_AFTER=$(gh api "repos/${{ github.repository }}/issues/${EXISTING_ISSUE}/comments" --jq '[.[] | select(.user.login == "github-actions[bot]")] | length')
+            if [[ "$COMMENTS_AFTER" -eq 0 ]]; then
+              echo "WARNING: No comment posted. Adding fallback..."
+              gh issue comment "${EXISTING_ISSUE}" --body "Workflow ${WORKFLOW_NAME} failed again. See: ${RUN_URL}"
+            fi
+          else
+            # Check if issue was created
+            RECENT_ISSUES=$(gh issue list --label "ci-failure" --state open --json number --limit 5 --jq 'length')
+            echo "Found ${RECENT_ISSUES} recent ci-failure issues"
+          fi
+          
+          echo "✓ Analysis complete"
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failure-analysis-${{ github.event.workflow_run.id }}
+          path: |
+            .tmp/*.txt
+            workflow-errors.log
+          retention-days: 7
+
+      - name: Send Slack notification
+        if: always() && vars.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          WORKFLOW_NAME: ${{ steps.workflow-details.outputs.workflow_name }}
+          RUN_URL: ${{ steps.workflow-details.outputs.run_url }}
+          HAS_EXISTING: ${{ steps.check-issue.outputs.has_existing }}
+          EXISTING_ISSUE: ${{ steps.check-issue.outputs.existing_issue }}
+        run: |
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            if [ "${HAS_EXISTING}" = "true" ]; then
+              ISSUE_URL="https://github.com/${{ github.repository }}/issues/${EXISTING_ISSUE}"
+              TITLE_TEXT="Workflow Failed Again"
+              MESSAGE="Workflow \`${WORKFLOW_NAME}\` failed again. Updated issue #${EXISTING_ISSUE}"
+            else
+              # Try to find the newly created issue
+              WORKFLOW_LABEL="workflow:$(echo ${WORKFLOW_NAME} | tr ' ' '-' | tr '[:upper:]' '[:lower:]')"
+              NEW_ISSUE=$(gh issue list --label "ci-failure" --label "${WORKFLOW_LABEL}" --state open --json number,url --limit 1 --jq '.[0] | "\(.number)|\(.url)"' 2>/dev/null || echo "")
+              
+              if [ -n "$NEW_ISSUE" ]; then
+                ISSUE_NUM=$(echo "$NEW_ISSUE" | cut -d'|' -f1)
+                ISSUE_URL=$(echo "$NEW_ISSUE" | cut -d'|' -f2)
+                TITLE_TEXT="Workflow Failed - Issue Created"
+                MESSAGE="Workflow \`${WORKFLOW_NAME}\` failed. Created issue #${ISSUE_NUM} with analysis"
+              else
+                ISSUE_URL=""
+                TITLE_TEXT="Workflow Failed"
+                MESSAGE="Workflow \`${WORKFLOW_NAME}\` failed. Check logs for details"
+              fi
+            fi
+            
+            SLACK_MESSAGE=$(cat <<EOF
+          {
+            "attachments": [
+              {
+                "color": "#ff0000",
+                "blocks": [
+                  {
+                    "type": "header",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "❌ ${TITLE_TEXT}"
+                    }
+                  },
+                  {
+                    "type": "section",
+                    "fields": [
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Workflow:*\n${WORKFLOW_NAME}"
+                      },
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Repository:*\n${{ github.repository }}"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "section",
+                    "text": {
+                      "type": "mrkdwn",
+                      "text": "${MESSAGE}"
+                    }
+                  },
+                  {
+                    "type": "actions",
+                    "elements": [
+                      {
+                        "type": "button",
+                        "text": {
+                          "type": "plain_text",
+                          "text": "View Workflow Run"
+                        },
+                        "url": "${RUN_URL}"
+                      }
+          EOF
+          )
+            
+            # Add issue button if URL exists
+            if [ -n "$ISSUE_URL" ]; then
+              SLACK_MESSAGE+=$(cat <<EOF
+          ,
+                      {
+                        "type": "button",
+                        "text": {
+                          "type": "plain_text",
+                          "text": "View Issue"
+                        },
+                        "url": "${ISSUE_URL}"
+                      }
+          EOF
+          )
+            fi
+            
+            SLACK_MESSAGE+=$(cat <<EOF
+          
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
+          )
+            
+            curl -X POST "$SLACK_WEBHOOK_URL" \
+              -H "Content-Type: application/json" \
+              -d "$SLACK_MESSAGE"
+            
+            echo "✓ Slack notification sent"
+          fi
+
+      - name: Send Pushover notification
+        if: always() && vars.PUSHOVER_USER_KEY != '' && vars.PUSHOVER_API_TOKEN != ''
+        env:
+          PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}
+          PUSHOVER_API_TOKEN: ${{ secrets.PUSHOVER_API_TOKEN }}
+          WORKFLOW_NAME: ${{ steps.workflow-details.outputs.workflow_name }}
+          RUN_URL: ${{ steps.workflow-details.outputs.run_url }}
+          HAS_EXISTING: ${{ steps.check-issue.outputs.has_existing }}
+          EXISTING_ISSUE: ${{ steps.check-issue.outputs.existing_issue }}
+        run: |
+          if [ -n "$PUSHOVER_USER_KEY" ] && [ -n "$PUSHOVER_API_TOKEN" ]; then
+            if [ "${HAS_EXISTING}" = "true" ]; then
+              TITLE="Workflow Failed Again"
+              MESSAGE="Workflow '${WORKFLOW_NAME}' failed again. See issue #${EXISTING_ISSUE}"
+              ISSUE_URL="https://github.com/${{ github.repository }}/issues/${EXISTING_ISSUE}"
+              PUSHOVER_PRIORITY=1  # High priority for recurring failures
+            else
+              TITLE="Workflow Failed"
+              MESSAGE="Workflow '${WORKFLOW_NAME}' failed. Analysis created."
+              ISSUE_URL="${RUN_URL}"
+              PUSHOVER_PRIORITY=1  # High priority for failures
+            fi
+            
+            curl -s -X POST https://api.pushover.net/1/messages.json \
+              -d "token=$PUSHOVER_API_TOKEN" \
+              -d "user=$PUSHOVER_USER_KEY" \
+              -d "title=${TITLE}" \
+              -d "message=${MESSAGE}" \
+              -d "url=${ISSUE_URL}" \
+              -d "url_title=View Details" \
+              -d "priority=${PUSHOVER_PRIORITY}"
+            
+            echo "✓ Pushover notification sent"
+          fi

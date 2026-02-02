@@ -1,0 +1,240 @@
+name: Renovate PR Reviewer
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review-renovate-pr:
+    if: github.actor == 'renovate[bot]' || github.actor == 'renovate'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Get PR details
+        id: pr-details
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_DATA=$(gh pr view ${{ github.event.pull_request.number }} --json number,title,body,files,headRefName)
+          echo "title=$(echo $PR_DATA | jq -r .title)" >> $GITHUB_OUTPUT
+          echo "head_ref=$(echo $PR_DATA | jq -r .headRefName)" >> $GITHUB_OUTPUT
+          
+          # Get the diff
+          gh pr diff ${{ github.event.pull_request.number }} > pr.diff
+
+      - name: Install OpenCode CLI
+        run: |
+          curl -fsSL https://opencode.ai/install | bash
+          echo "$HOME/.opencode/bin" >> $GITHUB_PATH
+
+      - name: Create temp directory
+        run: mkdir -p .tmp
+
+      - name: Review Renovate PR
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_API_BASE: ${{ secrets.OPENAI_API_BASE }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ steps.pr-details.outputs.title }}
+          PR_HEAD_REF: ${{ steps.pr-details.outputs.head_ref }}
+        run: |
+          # Read diff
+          DIFF_CONTENT=$(cat pr.diff)
+          
+          # Create prompt
+          cat > .tmp/pr-prompt.txt <<PROMPT_EOF
+          You are an AI assistant reviewing Renovate bot dependency update PRs for a container images repository.
+
+          PR Information:
+          - Number: ${PR_NUMBER}
+          - Title: ${PR_TITLE}
+          - Branch: ${PR_HEAD_REF}
+
+          PR DIFF:
+          
+          ${DIFF_CONTENT}
+          
+          ===================================
+
+          Repository Context:
+          This repository builds container images. Renovate manages dependencies including:
+          - Base image versions (Alpine, Ubuntu)
+          - Application versions in Dockerfiles
+          - GitHub Actions versions
+          - Other tooling versions
+
+          Your Tasks:
+
+          1. Analyze the changes:
+             - What files were modified?
+             - What versions are being updated (from -> to)?
+             - Are there any breaking changes mentioned in changelogs?
+
+          2. Assess risk level:
+             - LOW: Patch version updates, security fixes
+             - MEDIUM: Minor version updates with backward compatibility
+             - HIGH: Major version updates, base image changes
+
+          3. Check for issues:
+             - For base images: Known issues with new version?
+             - For applications: Breaking changes in release notes?
+             - For major bumps: Flag for manual review
+             - For Actions: Is the action still maintained?
+
+          4. Post a PR comment using github_add_issue_comment with:
+             - Summary of what's being updated
+             - Risk assessment (LOW/MEDIUM/HIGH)
+             - Any concerns or items requiring manual verification
+             - Recommendation: auto-merge, review recommended, or manual review required
+
+          5. Add appropriate label using github_update_pull_request:
+             - For LOW risk: Add 'automerge' label
+             - For MEDIUM/HIGH risk: Add 'review-required' label
+
+          CRITICAL RULES:
+          - ALWAYS call github_add_issue_comment to post your review
+          - ALWAYS add appropriate labels
+          - Be specific and actionable
+          - Focus on what maintainers need to know
+
+          Now analyze the PR and provide your review.
+          PROMPT_EOF
+          
+          # Run opencode
+          opencode run "$(cat .tmp/pr-prompt.txt)"
+          
+          # Verify response
+          echo "Verifying AI response..."
+          sleep 2
+          COMMENTS_AFTER=$(gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" --jq '[.[] | select(.user.login == "github-actions[bot]")] | length')
+          
+          if [[ "$COMMENTS_AFTER" -eq 0 ]]; then
+            echo "WARNING: No response posted. Adding fallback..."
+            gh pr comment "${PR_NUMBER}" --body "Renovate PR detected. Please review the dependency updates manually."
+          else
+            echo "✓ AI response posted"
+          fi
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-review-${{ github.event.pull_request.number }}
+          path: .tmp/*.txt
+          retention-days: 7
+
+      - name: Send Slack notification
+        if: always() && vars.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ steps.pr-details.outputs.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            # Get labels assigned
+            LABELS=$(gh pr view "$PR_NUMBER" --json labels --jq '[.labels[].name] | join(", ")')
+            
+            # Determine if automerge or review required
+            if echo "$LABELS" | grep -q "automerge"; then
+              APPROVAL_STATUS="✅ Auto-merge approved"
+              COLOR="#36a64f"
+            elif echo "$LABELS" | grep -q "review-required"; then
+              APPROVAL_STATUS="⚠️ Manual review required"
+              COLOR="#ff9900"
+            else
+              APPROVAL_STATUS="👀 Reviewed"
+              COLOR="#439FE0"
+            fi
+            
+            SLACK_MESSAGE=$(cat <<EOF
+          {
+            "attachments": [
+              {
+                "color": "${COLOR}",
+                "blocks": [
+                  {
+                    "type": "header",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "🤖 Renovate PR Reviewed"
+                    }
+                  },
+                  {
+                    "type": "section",
+                    "fields": [
+                      {
+                        "type": "mrkdwn",
+                        "text": "*PR:*\n<${PR_URL}|#${PR_NUMBER}: ${PR_TITLE}>"
+                      },
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Status:*\n${APPROVAL_STATUS}"
+                      },
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Labels:*\n${LABELS:-None}"
+                      },
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Repository:*\n${{ github.repository }}"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
+          )
+            
+            curl -X POST "$SLACK_WEBHOOK_URL" \
+              -H "Content-Type: application/json" \
+              -d "$SLACK_MESSAGE"
+            
+            echo "✓ Slack notification sent"
+          fi
+
+      - name: Send Pushover notification
+        if: always() && vars.PUSHOVER_USER_KEY != '' && vars.PUSHOVER_API_TOKEN != ''
+        env:
+          PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}
+          PUSHOVER_API_TOKEN: ${{ secrets.PUSHOVER_API_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ steps.pr-details.outputs.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          if [ -n "$PUSHOVER_USER_KEY" ] && [ -n "$PUSHOVER_API_TOKEN" ]; then
+            # Get labels to determine priority
+            LABELS=$(gh pr view "$PR_NUMBER" --json labels --jq '[.labels[].name] | join(", ")')
+            
+            # Set Pushover priority based on labels
+            if echo "$LABELS" | grep -q "review-required"; then
+              PUSHOVER_PRIORITY=1  # High priority for manual review
+              MESSAGE_PREFIX="⚠️ Manual Review Required"
+            else
+              PUSHOVER_PRIORITY=-1  # Low priority for auto-merge
+              MESSAGE_PREFIX="✅ Auto-merge Approved"
+            fi
+            
+            curl -s -X POST https://api.pushover.net/1/messages.json \
+              -d "token=$PUSHOVER_API_TOKEN" \
+              -d "user=$PUSHOVER_USER_KEY" \
+              -d "title=Renovate PR: #${PR_NUMBER}" \
+              -d "message=${MESSAGE_PREFIX}: ${PR_TITLE}" \
+              -d "url=${PR_URL}" \
+              -d "url_title=View PR" \
+              -d "priority=${PUSHOVER_PRIORITY}"
+            
+            echo "✓ Pushover notification sent"
+          fi

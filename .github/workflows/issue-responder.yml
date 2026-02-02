@@ -1,0 +1,211 @@
+name: Issue Responder
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install OpenCode CLI
+        run: |
+          curl -fsSL https://opencode.ai/install | bash
+          echo "$HOME/.opencode/bin" >> $GITHUB_PATH
+
+      - name: Create temp directory
+        run: mkdir -p .tmp
+
+      - name: Triage and respond to issue
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_API_BASE: ${{ secrets.OPENAI_API_BASE }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+        run: |
+          # Fetch full issue context
+          echo "Fetching issue context..."
+          CONVERSATION=$(gh issue view "$ISSUE_NUMBER" --json body,comments --jq '["=== ORIGINAL ISSUE ===", .body, "\n=== PREVIOUS COMMENTS ==="] + [.comments[] | "[\(.createdAt)] \(.author.login):\n\(.body)\n---"] | join("\n\n")')
+          
+          # Create prompt
+          cat > .tmp/issue-prompt.txt <<PROMPT_EOF
+          You are an AI assistant for a container images repository that builds and publishes containerized applications.
+
+          Issue Information:
+          - Number: ${ISSUE_NUMBER}
+          - Title: ${ISSUE_TITLE}
+          - Author: ${ISSUE_AUTHOR}
+
+          CONVERSATION HISTORY:
+          
+          ${CONVERSATION}
+          
+          ===================================
+
+          Repository Context:
+          This repository builds and publishes various containerized applications following these principles:
+          - Semantic versioning
+          - Rootless containers (user 65534:65534)
+          - Multi-architecture builds (amd64, arm64)
+          - Built on Alpine or Ubuntu base images
+          - Simple, single-process containers
+
+          Repository structure:
+          - /apps - Application directories with Dockerfiles
+          - /.github/workflows - CI/CD workflows
+          
+          Your Tasks:
+
+          1. Analyze the issue to determine:
+             - Type: bug, enhancement, question, or documentation
+             - Which container (check /apps directory)
+             - Priority: P0 (critical), P1 (high), P2 (medium), P3 (low)
+             - Information completeness
+
+          2. Add labels using github_issue_write with method update:
+             - Type label: bug, enhancement, question, or documentation
+             - Priority label: P0, P1, P2, or P3
+             - Container label: app/container-name if applicable
+
+          3. Post a comment using github_add_issue_comment:
+             - Welcome the user and acknowledge the issue
+             - For bugs: Ask for image version, logs, steps to reproduce if missing
+             - For features: Comment on feasibility
+             - For questions: Provide guidance
+             - Search for duplicates using github_search_issues and mention if found
+
+          CRITICAL RULES:
+          - ALWAYS call github_add_issue_comment to post a response
+          - ALWAYS call github_issue_write to add labels
+          - Be friendly, professional, and concise
+          - Use markdown formatting
+          - Reference file paths when relevant
+
+          Now analyze the issue and take action.
+          PROMPT_EOF
+          
+          # Run opencode
+          opencode run "$(cat .tmp/issue-prompt.txt)"
+          
+          # Verify response
+          echo "Verifying AI response..."
+          sleep 2
+          COMMENTS_AFTER=$(gh api "repos/${{ github.repository }}/issues/${ISSUE_NUMBER}/comments" --jq '[.[] | select(.user.login == "github-actions[bot]")] | length')
+          
+          if [[ "$COMMENTS_AFTER" -eq 0 ]]; then
+            echo "WARNING: No response posted. Adding fallback..."
+            gh issue comment "${ISSUE_NUMBER}" --body "Thank you for opening this issue! It will be reviewed by maintainers soon."
+          else
+            echo "✓ AI response posted"
+          fi
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue-response-${{ github.event.issue.number }}
+          path: .tmp/*.txt
+          retention-days: 7
+
+      - name: Send Slack notification
+        if: always() && vars.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+        run: |
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            # Get labels assigned
+            LABELS=$(gh issue view "$ISSUE_NUMBER" --json labels --jq '[.labels[].name] | join(", ")')
+            
+            # Create Slack message
+            SLACK_MESSAGE=$(cat <<EOF
+          {
+            "text": "New Issue Triaged",
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "🎫 New Issue Triaged"
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Issue:*\n<${ISSUE_URL}|#${ISSUE_NUMBER}: ${ISSUE_TITLE}>"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Author:*\n${ISSUE_AUTHOR}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Labels:*\n${LABELS:-None}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Repository:*\n${{ github.repository }}"
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
+          )
+            
+            curl -X POST "$SLACK_WEBHOOK_URL" \
+              -H "Content-Type: application/json" \
+              -d "$SLACK_MESSAGE"
+            
+            echo "✓ Slack notification sent"
+          fi
+
+      - name: Send Pushover notification
+        if: always() && vars.PUSHOVER_USER_KEY != '' && vars.PUSHOVER_API_TOKEN != ''
+        env:
+          PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}
+          PUSHOVER_API_TOKEN: ${{ secrets.PUSHOVER_API_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+        run: |
+          if [ -n "$PUSHOVER_USER_KEY" ] && [ -n "$PUSHOVER_API_TOKEN" ]; then
+            # Get priority label if exists
+            PRIORITY=$(gh issue view "$ISSUE_NUMBER" --json labels --jq '[.labels[].name | select(startswith("P"))] | .[0]' || echo "P2")
+            
+            # Map priority to Pushover priority (-2=lowest, -1=low, 0=normal, 1=high, 2=emergency)
+            case "$PRIORITY" in
+              P0) PUSHOVER_PRIORITY=2 ;;
+              P1) PUSHOVER_PRIORITY=1 ;;
+              P2) PUSHOVER_PRIORITY=0 ;;
+              P3) PUSHOVER_PRIORITY=-1 ;;
+              *) PUSHOVER_PRIORITY=0 ;;
+            esac
+            
+            curl -s -X POST https://api.pushover.net/1/messages.json \
+              -d "token=$PUSHOVER_API_TOKEN" \
+              -d "user=$PUSHOVER_USER_KEY" \
+              -d "title=New Issue: #${ISSUE_NUMBER}" \
+              -d "message=${ISSUE_TITLE}" \
+              -d "url=${ISSUE_URL}" \
+              -d "url_title=View Issue" \
+              -d "priority=${PUSHOVER_PRIORITY}"
+            
+            echo "✓ Pushover notification sent (priority: $PUSHOVER_PRIORITY)"
+          fi
