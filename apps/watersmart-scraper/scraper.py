@@ -31,6 +31,11 @@ except ImportError:  # noqa: PERF203
     _ws_sync = None  # type: ignore[assignment]
     _WEBSOCKETS_AVAILABLE = False
 
+# Deduplication: track the timestamp of the last published MQTT reading so we
+# skip republishing when WaterSmart hasn't provided new data.  Resets on pod
+# restart (one extra publish on startup is acceptable).
+_last_published_timestamp: str | None = None
+
 # ---------------------------------------------------------------------------
 # Logging — configured before anything else so load_dotenv errors are visible
 # ---------------------------------------------------------------------------
@@ -118,10 +123,9 @@ def _ha_slugify(s: str) -> str:
 _HA_DEVICE_SLUG = _ha_slugify(HA_DEVICE_NAME)  # e.g. "Water Meter" → "water_meter"
 
 # Home Assistant statistics backfill (optional)
-# Set both to enable one-shot historical backfill on startup via the HA
-# WebSocket recorder/import_statistics API.  Leave either blank to skip.
-# Recommended: use a dedicated HA user with minimal permissions; remove
-# HA_TOKEN after the first successful backfill run.
+# Set both to enable periodic backfill via the HA WebSocket
+# recorder/import_statistics API.  Leave either blank to skip.
+# Recommended: use a dedicated HA user with minimal permissions.
 HA_URL = os.getenv("HA_URL", "")  # e.g. ws://192.168.1.x:8123
 HA_TOKEN = os.getenv("HA_TOKEN", "")  # long-lived access token
 # The entity_id HA assigned to the consumption sensor.  HA derives this from
@@ -131,6 +135,14 @@ HA_STATISTICS_ENTITY_ID = os.getenv(
     "HA_STATISTICS_ENTITY_ID",
     f"sensor.{_HA_DEVICE_SLUG}_water_usage",
 )
+# How often to run the HA statistics backfill (hours).  Defaults to 24 since
+# WaterSmart only publishes new data approximately once per day.
+HA_BACKFILL_INTERVAL_HOURS = _int_env("HA_BACKFILL_INTERVAL_HOURS", 24)
+# Set to "true" to publish the latest reading to MQTT (enables live HA sensor
+# state).  Disabled by default because WaterSmart data is ~24h delayed and
+# the MQTT publish creates misaligned statistics rows in HA's recorder.
+# Enable only if WaterSmart provides near-real-time data for your meter.
+HA_MQTT_PUBLISH_LATEST = os.getenv("HA_MQTT_PUBLISH_LATEST", "false").lower() == "true"
 
 # Scraper
 SCRAPE_INTERVAL_MINUTES = _int_env("SCRAPE_INTERVAL_MINUTES", 60)
@@ -865,7 +877,8 @@ def _republish_discovery_on_connect() -> None:
     """M9: Called in a daemon thread after every (re)connect."""
     global _mqtt_pub_ref
     if _mqtt_pub_ref is not None:
-        publish_ha_discovery(_mqtt_pub_ref)
+        if HA_MQTT_PUBLISH_LATEST:
+            publish_ha_discovery(_mqtt_pub_ref)
         # Pie chart discovery is published dynamically after the first successful
         # pie chart scrape (see _run_scrape_inner).  On reconnect we can only
         # re-publish categories we've already seen, held in the module-level cache.
@@ -1277,21 +1290,27 @@ def _run_scrape_inner(
         except Exception as exc:  # noqa: BLE001
             logger.warning("HA statistics backfill raised an unexpected error: %s", exc)
 
-    # Publish most-recent single reading (retained — HA reads this via state_topic)
-    latest = latest_record(records)
-    if latest:
-        # M4: reuse scraped_at from top of cycle; overwrite per-record scraped_at
-        latest["scraped_at"] = scraped_at
-        mqtt_pub.publish(
-            make_topic("latest"),
-            {"account": account, "scraped_at": scraped_at, **latest},
-            retain=True,
-        )
-        logger.info(
-            "Latest reading: %s gal at %s",
-            latest.get("consumption_gallons"),
-            latest.get("timestamp"),
-        )
+    # Publish most-recent single reading (retained — HA reads this via state_topic).
+    # Disabled by default (HA_MQTT_PUBLISH_LATEST=false) because WaterSmart data is
+    # ~24h delayed and each publish creates a misaligned statistics row in HA's
+    # recorder.  Enable only if WaterSmart provides near-real-time data.
+    if HA_MQTT_PUBLISH_LATEST:
+        latest = latest_record(records)
+        if latest:
+            # M4: reuse scraped_at from top of cycle; overwrite per-record scraped_at
+            latest["scraped_at"] = scraped_at
+            mqtt_pub.publish(
+                make_topic("latest"),
+                {"account": account, "scraped_at": scraped_at, **latest},
+                retain=True,
+            )
+            logger.info(
+                "Latest reading: %s gal at %s",
+                latest.get("consumption_gallons"),
+                latest.get("timestamp"),
+            )
+    else:
+        logger.debug("HA_MQTT_PUBLISH_LATEST=false — skipping latest publish.")
 
     # Best-effort: pie chart failures must not affect the health record above
     # or cause the scrape cycle to appear failed.
@@ -1474,15 +1493,29 @@ def main() -> None:
 
     def _schedule_next() -> None:
         if not stop_event.is_set():
-            run_scrape(ws_client, mqtt_pub)
+            run_scrape(ws_client, mqtt_pub, backfill=_should_backfill())
             timer = threading.Timer(SCRAPE_INTERVAL_MINUTES * 60, _schedule_next)
             timer.daemon = True
             timer.name = "scrape-timer"
             timer.start()
 
-    # Run immediately, then start the repeating timer.
-    # Pass backfill=True on the first run only when HA_TOKEN is configured.
-    run_scrape(ws_client, mqtt_pub, backfill=bool(HA_TOKEN))
+    # Run immediately on startup with backfill.  Subsequent scrapes run every
+    # SCRAPE_INTERVAL_MINUTES; backfill re-runs every HA_BACKFILL_INTERVAL_HOURS
+    # to pick up new hours as WaterSmart publishes them (~once per day).
+    _last_backfill_time: list[float] = [0.0]  # mutable container for closure
+
+    def _should_backfill() -> bool:
+        if not HA_TOKEN:
+            return False
+        import time as _time
+
+        now = _time.monotonic()
+        if now - _last_backfill_time[0] >= HA_BACKFILL_INTERVAL_HOURS * 3600:
+            _last_backfill_time[0] = now
+            return True
+        return False
+
+    run_scrape(ws_client, mqtt_pub, backfill=_should_backfill())
     timer = threading.Timer(SCRAPE_INTERVAL_MINUTES * 60, _schedule_next)
     timer.daemon = True
     timer.name = "scrape-timer"
