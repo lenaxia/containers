@@ -1,7 +1,7 @@
 target "docker-metadata-action" {}
 
 variable "VERSION" {
-  default = "1.0.3"
+  default = "1.0.4"
 }
 
 variable "SOURCE" {
