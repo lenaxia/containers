@@ -13,7 +13,7 @@ import signal
 import sys
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urljoin, urlparse
 
@@ -1024,8 +1024,27 @@ def backfill_ha_statistics(records: list[dict]) -> None:
     Only runs when both HA_URL and HA_TOKEN are set.  Skipped silently if
     either is absent, if websockets is not installed, or if records is empty.
 
-    The call is idempotent — re-running with the same data is safe; HA uses
-    (statistic_id, hour-bucket-start) as the upsert key.
+    Sum continuity strategy
+    -----------------------
+    HA's recorder expects a monotonically-increasing ``sum`` across all rows
+    for a given statistic_id.  The API dataset only covers a finite window
+    (however far back WaterSmart retains data).  To avoid breaking the sum
+    sequence at the join point we:
+
+    1. Query HA for the last statistics row that exists *before* the oldest
+       API record using recorder/statistics_during_period (one-hour window
+       ending at oldest_api_ts).
+    2. Use that row's ``sum`` as the base for our running_sum so our import
+       continues the existing sequence seamlessly.
+    3. Upsert (import_statistics) all API records — rows already in HA within
+       the API window get their sums corrected; rows outside the window are
+       untouched.
+
+    This means:
+    - Re-running is safe: same window, same base, same sums → no-op upsert.
+    - Server outage + restart: API window covers the gap, we fill it correctly
+      without touching any pre-gap history.
+    - No clear_statistics needed: we never wipe pre-window data.
 
     Security note: HA_TOKEN is a long-lived admin token.  Use a dedicated HA
     user with minimal permissions, and remove HA_TOKEN after the first
@@ -1046,21 +1065,9 @@ def backfill_ha_statistics(records: list[dict]) -> None:
         logger.warning("Backfill skipped — no records to send.")
         return
 
-    # Build the stats list sorted oldest-first so the running sum is correct.
+    # Sort oldest-first so the running sum is built in the right direction.
     sorted_records = sorted(records, key=lambda r: r["timestamp"])
-
-    stats = []
-    running_sum = 0.0
-    for rec in sorted_records:
-        gallons = float(rec.get("consumption_gallons") or 0)
-        running_sum += gallons
-        stats.append(
-            {
-                "start": rec["timestamp"],
-                "state": gallons,
-                "sum": round(running_sum, 4),
-            }
-        )
+    oldest_ts = sorted_records[0]["timestamp"]  # ISO-8601 string
 
     statistic_id = HA_STATISTICS_ENTITY_ID
     metadata = {
@@ -1079,7 +1086,12 @@ def backfill_ha_statistics(records: list[dict]) -> None:
     ws_url = re.sub(r"^http(s?)://", r"ws\1://", HA_URL.rstrip("/"))
     ws_url = f"{ws_url}/api/websocket"
 
-    logger.info("Starting HA statistics backfill: %d records → %s", len(stats), ws_url)
+    logger.info(
+        "Starting HA statistics backfill: %d records (oldest=%s) → %s",
+        len(records),
+        oldest_ts,
+        ws_url,
+    )
 
     try:
         with _ws_sync.connect(ws_url, open_timeout=HA_WS_TIMEOUT) as ws:
@@ -1101,11 +1113,85 @@ def backfill_ha_statistics(records: list[dict]) -> None:
                 return
             logger.debug("HA WS authenticated (HA version: %s)", msg.get("ha_version"))
 
-            # 3. Send recorder/import_statistics
+            # 3. Query HA for the last known sum *before* our oldest API record.
+            #    We request a 1-hour window ending at oldest_ts so we get at
+            #    most the one hourly row immediately before our data window.
+            #    The WS response returns start/end as epoch milliseconds.
+            #
+            #    recorder/statistics_during_period schema:
+            #      request:  { start_time, end_time, statistic_ids, period, types }
+            #      response: { "statistic_id": [ { start, end, sum, ... } ] }
+            #                start/end are epoch-ms (multiplied × 1000 by HA)
+            oldest_dt = datetime.fromisoformat(oldest_ts)
+            # Query the hour-long window ending exactly at oldest_ts to find
+            # the last existing row before our backfill window.
+            window_end = oldest_dt
+            window_start = oldest_dt - timedelta(hours=1)
+
             ws.send(
                 json.dumps(
                     {
-                        "id": 1,
+                        "id": 2,
+                        "type": "recorder/statistics_during_period",
+                        "start_time": window_start.isoformat(),
+                        "end_time": window_end.isoformat(),
+                        "statistic_ids": [statistic_id],
+                        "period": "hour",
+                        "types": ["sum"],
+                    }
+                )
+            )
+            msg = json.loads(ws.recv(timeout=HA_WS_TIMEOUT))
+            base_sum = 0.0
+            if msg.get("success"):
+                rows = msg.get("result", {}).get(statistic_id, [])
+                if rows:
+                    # Take the last row's sum as our base.
+                    last_sum = rows[-1].get("sum")
+                    if last_sum is not None:
+                        base_sum = float(last_sum)
+                        logger.debug(
+                            "Found existing sum=%.4f before oldest API record (%s) "
+                            "— using as running sum base.",
+                            base_sum,
+                            oldest_ts,
+                        )
+                    else:
+                        logger.debug(
+                            "Existing row before %s has null sum — starting from 0.",
+                            oldest_ts,
+                        )
+                else:
+                    logger.debug(
+                        "No existing statistics before %s — starting sum from 0.",
+                        oldest_ts,
+                    )
+            else:
+                logger.warning(
+                    "recorder/statistics_during_period failed (%s) — "
+                    "falling back to sum base=0.",
+                    msg.get("error", msg),
+                )
+
+            # 4. Build stats list with sums continuing from base_sum.
+            stats = []
+            running_sum = base_sum
+            for rec in sorted_records:
+                gallons = float(rec.get("consumption_gallons") or 0)
+                running_sum += gallons
+                stats.append(
+                    {
+                        "start": rec["timestamp"],
+                        "state": gallons,
+                        "sum": round(running_sum, 4),
+                    }
+                )
+
+            # 5. Send recorder/import_statistics
+            ws.send(
+                json.dumps(
+                    {
+                        "id": 3,
                         "type": "recorder/import_statistics",
                         "metadata": metadata,
                         "stats": stats,
