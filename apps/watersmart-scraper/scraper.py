@@ -107,6 +107,16 @@ HA_DEVICE_NAME = os.getenv("HA_DEVICE_NAME", "Water Meter")
 HA_DEVICE_ID = os.getenv("HA_DEVICE_ID", "watersmart_meter")
 HA_DISCOVERY_PREFIX = os.getenv("HA_DISCOVERY_PREFIX", "homeassistant")
 
+
+# HA slugifies entity IDs from "{device_name}_{sensor_name}" — both lowercased
+# with runs of non-alphanumeric characters collapsed to a single underscore.
+# This matches how HA generates entity_ids for MQTT discovery sensors.
+def _ha_slugify(s: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", s.lower()).strip("_")
+
+
+_HA_DEVICE_SLUG = _ha_slugify(HA_DEVICE_NAME)  # e.g. "Water Meter" → "water_meter"
+
 # Home Assistant statistics backfill (optional)
 # Set both to enable one-shot historical backfill on startup via the HA
 # WebSocket recorder/import_statistics API.  Leave either blank to skip.
@@ -115,12 +125,11 @@ HA_DISCOVERY_PREFIX = os.getenv("HA_DISCOVERY_PREFIX", "homeassistant")
 HA_URL = os.getenv("HA_URL", "")  # e.g. ws://192.168.1.x:8123
 HA_TOKEN = os.getenv("HA_TOKEN", "")  # long-lived access token
 # The entity_id HA assigned to the consumption sensor.  HA derives this from
-# "{HA_DEVICE_ID}_{sensor name slugified}", e.g. "watersmart_meter" + "Water Usage"
-# → sensor.watersmart_meter_water_usage.  Override only if HA assigned something
-# different (check Developer Tools → States to confirm).
+# slugify(HA_DEVICE_NAME) + "_water_usage", e.g. "Water Meter" → sensor.water_meter_water_usage.
+# Override only if HA assigned something different (check Developer Tools → States).
 HA_STATISTICS_ENTITY_ID = os.getenv(
     "HA_STATISTICS_ENTITY_ID",
-    f"sensor.{HA_DEVICE_ID}_water_usage",
+    f"sensor.{_HA_DEVICE_SLUG}_water_usage",
 )
 
 # Scraper
