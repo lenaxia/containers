@@ -1,0 +1,20 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/goss-org/goss/master/docs/schema.yaml
+process:
+  python3:
+    running: true
+file:
+  /app/scraper.py:
+    exists: true
+  /entrypoint.sh:
+    exists: true
+port:
+  tcp:8080:
+    listening: true
+http:
+  http://localhost:8080/livez:
+    status: 200
+    timeout: 30000
+  http://localhost:8080/readyz:
+    status: 200
+    timeout: 30000
