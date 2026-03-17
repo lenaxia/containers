@@ -21,6 +21,16 @@ import requests
 import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
 
+# websockets is only imported when HA_TOKEN is set; guard the import so the
+# scraper still starts if the package is absent and backfill is not needed.
+try:
+    import websockets.sync.client as _ws_sync
+
+    _WEBSOCKETS_AVAILABLE = True
+except ImportError:  # noqa: PERF203
+    _ws_sync = None  # type: ignore[assignment]
+    _WEBSOCKETS_AVAILABLE = False
+
 # ---------------------------------------------------------------------------
 # Logging — configured before anything else so load_dotenv errors are visible
 # ---------------------------------------------------------------------------
@@ -96,6 +106,14 @@ MQTT_TLS_INSECURE = os.getenv("MQTT_TLS_INSECURE", "false").lower() == "true"
 HA_DEVICE_NAME = os.getenv("HA_DEVICE_NAME", "Water Meter")
 HA_DEVICE_ID = os.getenv("HA_DEVICE_ID", "watersmart_meter")
 HA_DISCOVERY_PREFIX = os.getenv("HA_DISCOVERY_PREFIX", "homeassistant")
+
+# Home Assistant statistics backfill (optional)
+# Set both to enable one-shot historical backfill on startup via the HA
+# WebSocket recorder/import_statistics API.  Leave either blank to skip.
+# Recommended: use a dedicated HA user with minimal permissions; remove
+# HA_TOKEN after the first successful backfill run.
+HA_URL = os.getenv("HA_URL", "")  # e.g. ws://192.168.1.x:8123
+HA_TOKEN = os.getenv("HA_TOKEN", "")  # long-lived access token
 
 # Scraper
 SCRAPE_INTERVAL_MINUTES = _int_env("SCRAPE_INTERVAL_MINUTES", 60)
@@ -975,20 +993,145 @@ def _republish_pie_chart_discovery(mqtt_pub: MQTTPublisher) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Home Assistant statistics backfill
+# ---------------------------------------------------------------------------
+
+# WebSocket timeout for the backfill connection (seconds).
+HA_WS_TIMEOUT = 30
+
+
+def backfill_ha_statistics(records: list[dict]) -> None:
+    """
+    Push the full hourly history into HA's recorder via recorder/import_statistics.
+
+    Only runs when both HA_URL and HA_TOKEN are set.  Skipped silently if
+    either is absent, if websockets is not installed, or if records is empty.
+
+    The call is idempotent — re-running with the same data is safe; HA uses
+    (statistic_id, hour-bucket-start) as the upsert key.
+
+    Security note: HA_TOKEN is a long-lived admin token.  Use a dedicated HA
+    user with minimal permissions, and remove HA_TOKEN after the first
+    successful backfill.
+    """
+    if not HA_URL or not HA_TOKEN:
+        logger.debug("HA_URL / HA_TOKEN not set — skipping statistics backfill.")
+        return
+
+    if not _WEBSOCKETS_AVAILABLE:
+        logger.error(
+            "HA statistics backfill requested but 'websockets' package is not "
+            "installed.  Add websockets to the container image."
+        )
+        return
+
+    if not records:
+        logger.warning("Backfill skipped — no records to send.")
+        return
+
+    # Build the stats list sorted oldest-first so the running sum is correct.
+    sorted_records = sorted(records, key=lambda r: r["timestamp"])
+
+    stats = []
+    running_sum = 0.0
+    for rec in sorted_records:
+        gallons = float(rec.get("consumption_gallons") or 0)
+        running_sum += gallons
+        stats.append(
+            {
+                "start": rec["timestamp"],
+                "state": gallons,
+                "sum": round(running_sum, 4),
+            }
+        )
+
+    statistic_id = f"sensor.{HA_DEVICE_ID}_consumption"
+    metadata = {
+        "has_mean": False,
+        "mean_type": 0,  # StatisticMeanType.NONE = 0
+        "has_sum": True,
+        "name": "Water Usage",
+        "source": "recorder",
+        "statistic_id": statistic_id,
+        "unit_class": "volume",
+        "unit_of_measurement": "gal",
+    }
+
+    # Normalise URL: replace http(s) scheme with ws(s) for clarity; the
+    # websockets library accepts both, but being explicit avoids confusion.
+    ws_url = re.sub(r"^http(s?)://", r"ws\1://", HA_URL.rstrip("/"))
+    ws_url = f"{ws_url}/api/websocket"
+
+    logger.info("Starting HA statistics backfill: %d records → %s", len(stats), ws_url)
+
+    try:
+        with _ws_sync.connect(ws_url, open_timeout=HA_WS_TIMEOUT) as ws:
+            # 1. Receive auth_required
+            msg = json.loads(ws.recv(timeout=HA_WS_TIMEOUT))
+            if msg.get("type") != "auth_required":
+                logger.error("HA WS: expected auth_required, got %r", msg.get("type"))
+                return
+
+            # 2. Authenticate
+            ws.send(json.dumps({"type": "auth", "access_token": HA_TOKEN}))
+            msg = json.loads(ws.recv(timeout=HA_WS_TIMEOUT))
+            if msg.get("type") != "auth_ok":
+                logger.error(
+                    "HA WS authentication failed (type=%r). "
+                    "Check HA_TOKEN is valid and belongs to an admin user.",
+                    msg.get("type"),
+                )
+                return
+            logger.debug("HA WS authenticated (HA version: %s)", msg.get("ha_version"))
+
+            # 3. Send recorder/import_statistics
+            ws.send(
+                json.dumps(
+                    {
+                        "id": 1,
+                        "type": "recorder/import_statistics",
+                        "metadata": metadata,
+                        "stats": stats,
+                    }
+                )
+            )
+            msg = json.loads(ws.recv(timeout=HA_WS_TIMEOUT))
+            if msg.get("success"):
+                logger.info(
+                    "HA statistics backfill complete: %d hourly records imported "
+                    "for %s.",
+                    len(stats),
+                    statistic_id,
+                )
+            else:
+                logger.error(
+                    "HA recorder/import_statistics failed: %s",
+                    msg.get("error", msg),
+                )
+
+    except Exception as exc:  # noqa: BLE001
+        logger.error("HA statistics backfill error: %s", exc)
+
+
+# ---------------------------------------------------------------------------
 # Scrape job
 # ---------------------------------------------------------------------------
 
 
-def run_scrape(ws_client: WaterSmartClient, mqtt_pub: MQTTPublisher) -> None:
+def run_scrape(
+    ws_client: WaterSmartClient, mqtt_pub: MQTTPublisher, backfill: bool = False
+) -> None:
     """R14/RL3: Top-level wrapper catches all exceptions so scheduler never dies."""
     try:
-        _run_scrape_inner(ws_client, mqtt_pub)
+        _run_scrape_inner(ws_client, mqtt_pub, backfill=backfill)
     except Exception as exc:  # noqa: BLE001
         logger.exception("Unhandled exception in scrape cycle: %s", exc)
         health.record_scrape(False, error=f"Unhandled exception: {exc}")
 
 
-def _run_scrape_inner(ws_client: WaterSmartClient, mqtt_pub: MQTTPublisher) -> None:
+def _run_scrape_inner(
+    ws_client: WaterSmartClient, mqtt_pub: MQTTPublisher, backfill: bool = False
+) -> None:
     logger.info("--- Scrape cycle starting ---")
     # M4: single timestamp for the whole cycle
     scraped_at = datetime.now(timezone.utc).isoformat()
@@ -1051,6 +1194,14 @@ def _run_scrape_inner(ws_client: WaterSmartClient, mqtt_pub: MQTTPublisher) -> N
         )
 
     health.record_scrape(True, record_count=len(records))
+
+    # One-shot HA statistics backfill — only runs on the first scrape cycle
+    # when HA_TOKEN is present.  Best-effort: failure must not taint health.
+    if backfill:
+        try:
+            backfill_ha_statistics(records)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("HA statistics backfill raised an unexpected error: %s", exc)
 
     # Best-effort: pie chart failures must not affect the health record above
     # or cause the scrape cycle to appear failed.
@@ -1190,6 +1341,13 @@ def main() -> None:
         HA_DISCOVERY_PREFIX,
     )
     logger.info("Scrape interval: %d minutes", SCRAPE_INTERVAL_MINUTES)
+    if HA_TOKEN:
+        logger.info(
+            "HA statistics backfill enabled (HA_URL=%s) — will run once on first scrape.",
+            HA_URL or "(HA_URL not set)",
+        )
+    else:
+        logger.info("HA statistics backfill disabled (HA_TOKEN not set).")
 
     # Start health server first — keeps liveness probe happy during slow startup
     start_health_server()
@@ -1231,8 +1389,9 @@ def main() -> None:
             timer.name = "scrape-timer"
             timer.start()
 
-    # Run immediately, then start the repeating timer
-    run_scrape(ws_client, mqtt_pub)
+    # Run immediately, then start the repeating timer.
+    # Pass backfill=True on the first run only when HA_TOKEN is configured.
+    run_scrape(ws_client, mqtt_pub, backfill=bool(HA_TOKEN))
     timer = threading.Timer(SCRAPE_INTERVAL_MINUTES * 60, _schedule_next)
     timer.daemon = True
     timer.name = "scrape-timer"

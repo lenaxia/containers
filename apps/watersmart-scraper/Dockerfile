@@ -28,6 +28,7 @@ RUN \
         "requests==2.31.0" \
         "paho-mqtt==2.0.0" \
         "python-dotenv==1.0.1" \
+        "websockets==13.1" \
     && apt-get purge -y --auto-remove \
     && rm -rf /var/lib/apt/lists/* /tmp/*
 
