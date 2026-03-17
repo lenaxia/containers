@@ -31,11 +31,11 @@ RUN \
     && apt-get purge -y --auto-remove \
     && rm -rf /var/lib/apt/lists/* /tmp/*
 
-COPY . /
+COPY . /app/
 
 USER nobody:nogroup
 WORKDIR /app
 
 EXPOSE 8080
 
-ENTRYPOINT ["/usr/bin/catatonit", "--", "/entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/catatonit", "--", "/app/entrypoint.sh"]
