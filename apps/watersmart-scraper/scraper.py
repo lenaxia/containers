@@ -115,11 +115,13 @@ HA_DISCOVERY_PREFIX = os.getenv("HA_DISCOVERY_PREFIX", "homeassistant")
 HA_URL = os.getenv("HA_URL", "")  # e.g. ws://192.168.1.x:8123
 HA_TOKEN = os.getenv("HA_TOKEN", "")  # long-lived access token
 # The entity_id HA assigned to the consumption sensor.  HA derives this from
-# the device name + sensor name, NOT from unique_id, so it may differ from
-# what you expect.  Check Developer Tools → States in HA to confirm.
-# Default derivation: sensor.{HA_DEVICE_NAME slugified}_{sensor name slugified}
-# e.g. "Water Meter" + "Water Usage" → sensor.water_meter_water_usage
-HA_STATISTICS_ENTITY_ID = os.getenv("HA_STATISTICS_ENTITY_ID", "")
+# "{HA_DEVICE_ID}_{sensor name slugified}", e.g. "watersmart_meter" + "Water Usage"
+# → sensor.watersmart_meter_water_usage.  Override only if HA assigned something
+# different (check Developer Tools → States to confirm).
+HA_STATISTICS_ENTITY_ID = os.getenv(
+    "HA_STATISTICS_ENTITY_ID",
+    f"sensor.{HA_DEVICE_ID}_water_usage",
+)
 
 # Scraper
 SCRAPE_INTERVAL_MINUTES = _int_env("SCRAPE_INTERVAL_MINUTES", 60)
@@ -1051,17 +1053,7 @@ def backfill_ha_statistics(records: list[dict]) -> None:
             }
         )
 
-    if HA_STATISTICS_ENTITY_ID:
-        statistic_id = HA_STATISTICS_ENTITY_ID
-    else:
-        logger.error(
-            "HA_STATISTICS_ENTITY_ID is not set.  Cannot determine the correct "
-            "entity_id for the consumption sensor.  Check Developer Tools → States "
-            "in HA and set HA_STATISTICS_ENTITY_ID to the entity_id of the water "
-            "usage sensor (e.g. sensor.water_meter_water_usage).  Backfill skipped."
-        )
-        return
-
+    statistic_id = HA_STATISTICS_ENTITY_ID
     metadata = {
         "has_mean": False,
         "mean_type": 0,  # StatisticMeanType.NONE = 0
@@ -1361,8 +1353,7 @@ def main() -> None:
         logger.info(
             "HA statistics backfill enabled (HA_URL=%s, entity_id=%s) — will run once on first scrape.",
             HA_URL or "(HA_URL not set)",
-            HA_STATISTICS_ENTITY_ID
-            or "(HA_STATISTICS_ENTITY_ID not set — backfill will be skipped)",
+            HA_STATISTICS_ENTITY_ID,
         )
     else:
         logger.info("HA statistics backfill disabled (HA_TOKEN not set).")
