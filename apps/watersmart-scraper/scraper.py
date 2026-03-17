@@ -13,7 +13,7 @@ import signal
 import sys
 import threading
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urljoin, urlparse
 
@@ -1114,27 +1114,26 @@ def backfill_ha_statistics(records: list[dict]) -> None:
             logger.debug("HA WS authenticated (HA version: %s)", msg.get("ha_version"))
 
             # 3. Query HA for the last known sum *before* our oldest API record.
-            #    We request a 1-hour window ending at oldest_ts so we get at
-            #    most the one hourly row immediately before our data window.
-            #    The WS response returns start/end as epoch milliseconds.
+            #    We fetch all hourly rows from the epoch up to oldest_ts and
+            #    take the last one's sum as our base.  A narrow 1-hour window
+            #    would miss cases where the last DB row is hours/days before
+            #    the oldest API record (e.g. after a long server outage).
             #
             #    recorder/statistics_during_period schema:
             #      request:  { start_time, end_time, statistic_ids, period, types }
             #      response: { "statistic_id": [ { start, end, sum, ... } ] }
             #                start/end are epoch-ms (multiplied × 1000 by HA)
             oldest_dt = datetime.fromisoformat(oldest_ts)
-            # Query the hour-long window ending exactly at oldest_ts to find
-            # the last existing row before our backfill window.
-            window_end = oldest_dt
-            window_start = oldest_dt - timedelta(hours=1)
+            # Epoch start — far enough back to catch any existing history.
+            epoch_start = datetime(1970, 1, 2, tzinfo=timezone.utc)
 
             ws.send(
                 json.dumps(
                     {
                         "id": 2,
                         "type": "recorder/statistics_during_period",
-                        "start_time": window_start.isoformat(),
-                        "end_time": window_end.isoformat(),
+                        "start_time": epoch_start.isoformat(),
+                        "end_time": oldest_dt.isoformat(),
                         "statistic_ids": [statistic_id],
                         "period": "hour",
                         "types": ["sum"],
