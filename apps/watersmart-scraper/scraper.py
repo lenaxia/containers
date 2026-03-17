@@ -879,9 +879,10 @@ def publish_ha_discovery(mqtt_pub: MQTTPublisher) -> None:
 
     Sensors:
       - {HA_DEVICE_ID}_consumption  — most-recent hourly usage (gal);
-            state_class=total + last_reset_value_template so HA treats each
-            hourly reading as a fresh total (device_class=water requires a
-            total state class; last_reset tells HA when each interval began)
+            state_class=total without last_reset so HA accumulates sum as
+            new_state - old_state between consecutive MQTT publishes, which
+            is correct for hourly consumption values (device_class=water
+            requires a total state class)
       - {HA_DEVICE_ID}_leak         — leak gallons for the same period
       - {HA_DEVICE_ID}_last_read    — timestamp of the reading
     """
@@ -902,7 +903,6 @@ def publish_ha_discovery(mqtt_pub: MQTTPublisher) -> None:
             "unit_of_measurement": "gal",
             "device_class": "water",
             "state_class": "total",
-            "last_reset_value_template": "{{ value_json.timestamp }}",
             "icon": "mdi:water",
             "device": device,
         },
