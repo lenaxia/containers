@@ -1266,6 +1266,17 @@ def _run_scrape_inner(
         },
     )
 
+    health.record_scrape(True, record_count=len(records))
+
+    # One-shot HA statistics backfill — runs before MQTT publish on the first
+    # scrape cycle so the backfilled rows are written before HA's live recorder
+    # can compile a statistics row from the MQTT state change.
+    if backfill:
+        try:
+            backfill_ha_statistics(records)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("HA statistics backfill raised an unexpected error: %s", exc)
+
     # Publish most-recent single reading (retained — HA reads this via state_topic)
     latest = latest_record(records)
     if latest:
@@ -1281,16 +1292,6 @@ def _run_scrape_inner(
             latest.get("consumption_gallons"),
             latest.get("timestamp"),
         )
-
-    health.record_scrape(True, record_count=len(records))
-
-    # One-shot HA statistics backfill — only runs on the first scrape cycle
-    # when HA_TOKEN is present.  Best-effort: failure must not taint health.
-    if backfill:
-        try:
-            backfill_ha_statistics(records)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("HA statistics backfill raised an unexpected error: %s", exc)
 
     # Best-effort: pie chart failures must not affect the health record above
     # or cause the scrape cycle to appear failed.
