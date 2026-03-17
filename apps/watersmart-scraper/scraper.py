@@ -1032,19 +1032,15 @@ def backfill_ha_statistics(records: list[dict]) -> None:
     sequence at the join point we:
 
     1. Query HA for the last statistics row that exists *before* the oldest
-       API record using recorder/statistics_during_period (one-hour window
-       ending at oldest_api_ts).
-    2. Use that row's ``sum`` as the base for our running_sum so our import
-       continues the existing sequence seamlessly.
-    3. Upsert (import_statistics) all API records — rows already in HA within
-       the API window get their sums corrected; rows outside the window are
-       untouched.
+       API record using recorder/statistics_during_period (from epoch up to
+       oldest_api_ts).  Use that row's ``sum`` as the base for our running
+       sum so the import continues the existing sequence seamlessly.
+    2. Import all API records with sums built from that base.
 
-    This means:
-    - Re-running is safe: same window, same base, same sums → no-op upsert.
-    - Server outage + restart: API window covers the gap, we fill it correctly
-      without touching any pre-gap history.
-    - No clear_statistics needed: we never wipe pre-window data.
+    Note: recorder/import_statistics is INSERT-ONLY for rows that already
+    exist — it will not overwrite them.  The statistics table should be
+    clean (wiped via Developer Tools → Statistics) before the first run if
+    previously-corrupted rows exist.
 
     Security note: HA_TOKEN is a long-lived admin token.  Use a dedicated HA
     user with minimal permissions, and remove HA_TOKEN after the first
@@ -1114,23 +1110,15 @@ def backfill_ha_statistics(records: list[dict]) -> None:
             logger.debug("HA WS authenticated (HA version: %s)", msg.get("ha_version"))
 
             # 3. Query HA for the last known sum *before* our oldest API record.
-            #    We fetch all hourly rows from the epoch up to oldest_ts and
-            #    take the last one's sum as our base.  A narrow 1-hour window
-            #    would miss cases where the last DB row is hours/days before
-            #    the oldest API record (e.g. after a long server outage).
-            #
-            #    recorder/statistics_during_period schema:
-            #      request:  { start_time, end_time, statistic_ids, period, types }
-            #      response: { "statistic_id": [ { start, end, sum, ... } ] }
-            #                start/end are epoch-ms (multiplied × 1000 by HA)
+            #    Fetching from epoch → oldest_ts catches any existing history
+            #    regardless of how long ago it was written.
             oldest_dt = datetime.fromisoformat(oldest_ts)
-            # Epoch start — far enough back to catch any existing history.
             epoch_start = datetime(1970, 1, 2, tzinfo=timezone.utc)
 
             ws.send(
                 json.dumps(
                     {
-                        "id": 2,
+                        "id": 1,
                         "type": "recorder/statistics_during_period",
                         "start_time": epoch_start.isoformat(),
                         "end_time": oldest_dt.isoformat(),
@@ -1145,11 +1133,10 @@ def backfill_ha_statistics(records: list[dict]) -> None:
             if msg.get("success"):
                 rows = msg.get("result", {}).get(statistic_id, [])
                 if rows:
-                    # Take the last row's sum as our base.
                     last_sum = rows[-1].get("sum")
                     if last_sum is not None:
                         base_sum = float(last_sum)
-                        logger.debug(
+                        logger.info(
                             "Found existing sum=%.4f before oldest API record (%s) "
                             "— using as running sum base.",
                             base_sum,
@@ -1190,7 +1177,7 @@ def backfill_ha_statistics(records: list[dict]) -> None:
             ws.send(
                 json.dumps(
                     {
-                        "id": 3,
+                        "id": 2,
                         "type": "recorder/import_statistics",
                         "metadata": metadata,
                         "stats": stats,
