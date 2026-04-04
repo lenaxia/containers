@@ -2,7 +2,7 @@
 
 ARG TARGETARCH
 ARG ARCH=${TARGETARCH/arm64/aarch64}
-FROM ghcr.io/home-assistant/${ARCH}-base-python:3.13-alpine3.21
+FROM ghcr.io/home-assistant/${ARCH}-base-python:3.14-alpine3.22
 ARG TARGETARCH
 ARG ARCH=${TARGETARCH/arm64/aarch64}
 ARG VERSION
@@ -92,8 +92,18 @@ RUN if [ -z "$VERSION" ]; then \
         | tar xzf - -C /tmp/homeassistant --strip-components=1 || \
     (echo "Failed to download Home Assistant core version ${VERSION}" && exit 1)
 
-# Get Home Assistant base version
-RUN HOME_ASSISTANT_BASE=$(curl -fsSL "https://raw.githubusercontent.com/home-assistant/core/${VERSION}/build.yaml" | grep "${ARCH}: " | cut -d ":" -f3) && \
+# Get Home Assistant docker base version
+# For HA >= 2025.12.0, build.yaml was removed from the core repo root.
+# The equivalent BASE_IMAGE_VERSION is now in .github/workflows/builder.yml.
+# For older versions, fall back to the root build.yaml.
+RUN HOME_ASSISTANT_BASE=$( \
+        curl -fsSL "https://raw.githubusercontent.com/home-assistant/core/${VERSION}/.github/workflows/builder.yml" \
+            | sed -n 's/.*BASE_IMAGE_VERSION: "\(.*\)".*/\1/p' \
+            | head -1 \
+    ) && \
+    if [ -z "$HOME_ASSISTANT_BASE" ]; then \
+        HOME_ASSISTANT_BASE=$(curl -fsSL "https://raw.githubusercontent.com/home-assistant/core/${VERSION}/build.yaml" | grep "${ARCH}: " | cut -d ":" -f3); \
+    fi && \
     echo "Home Assistant base version: $HOME_ASSISTANT_BASE" && \
     if [ -z "$HOME_ASSISTANT_BASE" ]; then \
         echo "ERROR: Failed to determine Home Assistant base version" && exit 1; \
