@@ -2,7 +2,7 @@ target "docker-metadata-action" {}
 
 variable "VERSION" {
   // renovate: datasource=pypi depName=homeassistant
-  default = "2026.5.2"
+  default = "2026.5.4"
 }
 
 variable "SOURCE" {
