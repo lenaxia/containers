@@ -72,15 +72,6 @@ jobs:
           echo "version=${version}" >> $GITHUB_OUTPUT
 
       - if: ${{ steps.app-options.outputs.version != steps.registry.outputs.version }}
-        name: Find Pull Request
-        uses: juliangruber/find-pull-request-action@33d46d4ff90884bb23aaead16044125daaf733d8 # v1.11.0
-        id: find-pull-request
-        with:
-          github-token: ${{ steps.app-token.outputs.token }}
-          labels: app/${{ matrix.app }}
-          state: open
-
-      - if: ${{ steps.find-pull-request.outputs.number != '' }}
         name: Retry Release
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
