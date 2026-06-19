@@ -7,6 +7,10 @@ on:
     - cron: "30 1 * * *"
   workflow_dispatch:
 
+permissions:
+  contents: read
+  actions: write
+
 jobs:
   apps:
     name: Get App Inventory
@@ -74,7 +78,7 @@ jobs:
       - if: ${{ steps.app-options.outputs.version != steps.registry.outputs.version }}
         name: Retry Release
         env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           gh workflow run release.yaml \
               --repo ${{ github.repository }} \
