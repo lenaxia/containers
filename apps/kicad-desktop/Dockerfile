@@ -137,12 +137,12 @@ install -d -m 0755 /usr/local/share/kicad/8.0/3rdparty/plugins
 # Download the latest tagged releases from the upstream repos and extract
 # into the PCM plugins directory. Pinned to known-good versions.
 install -d -m 0755 /tmp/plugins
-curl -fsSL https://github.com/Bouni/kicad-jlcpcb-tools/archive/refs/tags/v2025.4.0.tar.gz \
+curl -fsSL https://github.com/Bouni/kicad-jlcpcb-tools/archive/refs/tags/2026.04.03.tar.gz \
     | tar xzf - -C /tmp/plugins --strip-components=1 \
         --exclude='*/.github' --exclude='*/.git*'
 mv /tmp/plugins "/usr/local/share/kicad/8.0/3rdparty/plugins/com_github_bouni_kicad_jlcpcb_tools"
 
-curl -fsSL https://github.com/openscopeproject/InteractiveHtmlBom/archive/refs/tags/2.11.1.tar.gz \
+curl -fsSL https://github.com/openscopeproject/InteractiveHtmlBom/archive/refs/tags/v2.11.2.tar.gz \
     | tar xzf - -C /tmp/plugins --strip-components=1 \
         --exclude='*/.github' --exclude='*/.git*'
 mv /tmp/plugins "/usr/local/share/kicad/8.0/3rdparty/plugins/org_openscopeproject_interactivehtmlbom"
