@@ -195,5 +195,5 @@ EXPOSE 8080 8081 9081 3478 47984 47989 47990 48010
 
 # Inherit the Selkies base image's entrypoint (supervisord). All behavior is
 # driven by env vars and the supervisord config files.
-ENTRYPOINT ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
+ENTRYPOINT ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
 CMD []
