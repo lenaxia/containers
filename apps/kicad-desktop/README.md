@@ -1,6 +1,6 @@
 # kicad-desktop
 
-KiCad 9 streaming workstation — **Selkies-GStreamer** (browser WebRTC) and
+KiCad 10 streaming workstation — **Selkies-GStreamer** (browser WebRTC) and
 **Sunshine** (Moonlight native client) sharing one X server, with Intel
 VAAPI/QSV hardware encoding.
 
@@ -12,7 +12,7 @@ deployment guide.
 
 Layered on `ghcr.io/selkies-project/selkies-gstreamer/gst-py-example:main-ubuntu24.04`:
 
-- **KiCad 9.0** — full meta + libs + 3D models (from `apt.kicad.org`)
+- **KiCad 10** — full meta + libs + 3D models (from `ppa:kicad/kicad-10.0-releases`)
 - **Sunshine** — Moonlight host (from LizardByte apt repo)
 - **IceWM** — lightweight WM fallback (in addition to Xfce4 from base)
 - **Intel VAAPI stack** — `intel-media-va-driver-non-free`, `i965-va-driver-shaders`, `mesa-va-drivers`, `libva2`, `vainfo`

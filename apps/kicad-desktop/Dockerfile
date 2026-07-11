@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1
 #
-# KiCad 8 Streaming Workstation (Intel VAAPI / Quick Sync)
+# KiCad 10 Streaming Workstation (Intel VAAPI / Quick Sync)
 #
 # Single image bundling:
 #   - Xvfb + Xfce4 + IceWM         (graphical session)
-#   - KiCad 8 (Ubuntu universe) + community plugins (eeschema + pcbnew)
+#   - KiCad 10 + community plugins (eeschema + pcbnew)
 #   - Selkies-GStreamer             (browser WebRTC, H.264 via VAAPI)
 #   - Sunshine                      (Moonlight native-client host, VAAPI)
 #   - supervisord                   (process supervisor)
@@ -19,7 +19,7 @@
 # Target node: Intel NUC8i5 (Iris Plus 655). Use the gpu.intel.com/i915
 # device plugin to mount /dev/dri into the pod.
 #
-# Multi-arch: amd64 only. KiCad 9.0 upstream publishes amd64 debs, and the
+# Multi-arch: amd64 only. KiCad PPA publishes amd64 debs, and the
 # Intel iGPU target is x86_64-only.
 
 ARG TARGETARCH
@@ -43,19 +43,27 @@ ENV DEBIAN_FRONTEND=noninteractive \
     SELKIES_AUDIO_BITRATE=128000 \
     SELKIES_GPU_ID=0 \
     DISPLAY=:20 \
-    # ── KiCad 9 IPC API client vars (set BY kicad FOR plugins at runtime) ──
+    # ── KiCad IPC API client vars (set BY kicad FOR plugins at runtime) ──
     # KICAD_API_SOCKET and KICAD_API_TOKEN are exported by kicad to its children.
     # They are referenced here only so the MCP sidecar can read them via a shared
     # volume; do NOT set them statically in production.
     KICAD_DOCUMENTS_HOME=/config/kicad
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 1. KiCad — installed via Ubuntu universe repository.
-#    The old apt.kicad.org repo was decommissioned after the KiCad 10.0 release.
-#    Ubuntu 24.04 (noble) ships KiCad in universe.
+# 1. KiCad 10.0 official PPA (ppa:kicad/kicad-10.0-releases).
+#    The old apt.kicad.org repo was decommissioned; KiCad 10 ships via the
+#    Launchpad PPA. KiCad 10's IPC API (gRPC/NNG) has meaningful improvements
+#    over 9 (better headless paths, richer tool surface for the MCP server).
 # ──────────────────────────────────────────────────────────────────────────────
-# (No separate RUN — apt-get update + install kicad happens in the main
-#  install block below.)
+RUN <<'EOF'
+set -eux
+install -d -m 0755 /etc/apt/keyrings
+curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xFDA854F61C4D0D9572BB95E5245D5502FAD7A805" \
+    | gpg --dearmor --yes -o /etc/apt/keyrings/kicad.gpg
+chmod 0644 /etc/apt/keyrings/kicad.gpg
+echo "deb [signed-by=/etc/apt/keyrings/kicad.gpg] https://ppa.launchpadcontent.net/kicad/kicad-10.0-releases/ubuntu noble main" \
+    > /etc/apt/sources.list.d/kicad.list
+EOF
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 2. LizardByte Sunshine — download .deb from GitHub releases.
@@ -74,19 +82,18 @@ rm -f "/tmp/${SUNSHINE_DEB}"
 EOF
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 3. KiCad + WM + VAAPI + Python tooling
+# 3. KiCad 10 + WM + VAAPI + Python tooling
 # ──────────────────────────────────────────────────────────────────────────────
 RUN <<'EOF'
 set -eux
 apt-get update
 
-# KiCad (Ubuntu 24.04 universe). The kicad metapackage pulls in kicad-cli,
-# kicad-symbols, kicad-footprints, and core dependencies. On Ubuntu 24.04 the
-# pcbnew Python bindings ship inside the kicad package itself (no separate
-# python3-kicad-pcbnew package in universe).
+# KiCad 10 from the PPA. The metapackage 'kicad' depends on kicad-cli,
+# kicad-symbols, kicad-footprints, kicad-templates. kicad-library-packages3d
+# is split out — pull it in for the 3D viewer.
 apt-get install -y --no-install-recommends \
         kicad \
-        kicad-demos
+        kicad-library-packages3d
 
 # Window managers: keep Xfce4 from base image as the full session; add IceWM
 # as an ultra-lightweight fallback WM (no compositor, no panel) for users who
@@ -112,8 +119,8 @@ apt-get install -y --no-install-recommends \
         fonts-liberation \
         fonts-liberation2
 
-# Python tooling for KiCad automation. pcbnew bindings come from the
-# python3-kicad-pcbnew package above; pip-install the higher-level libs.
+# Python tooling for KiCad automation. pcbnew bindings ship inside the kicad
+# package; pip-install the higher-level libs.
 apt-get install -y --no-install-recommends python3-pip python3-venv
 pip3 install --break-system-packages --no-cache-dir \
         kibot \
@@ -121,9 +128,9 @@ pip3 install --break-system-packages --no-cache-dir \
         kiutils
 
 # kicad-python (the official IPC API client from the KiCad team).
-# KiCad 9 IPC API is PCB-editor-only and requires the GUI to be running, but
-# the client lib is installed here so the MCP sidecar can connect to the GUI's
-# UNIX socket (mounted into the pod via an emptyDir at /tmp/kicad).
+# KiCad 10 improves the IPC API (gRPC/NNG) over 9 — including better headless
+# paths. The client lib is installed here so the MCP sidecar can connect to
+# the GUI's UNIX socket at /tmp/kicad/api.sock (shared emptyDir).
 pip3 install --break-system-packages --no-cache-dir \
         kicad-python
 
@@ -132,7 +139,7 @@ pip3 install --break-system-packages --no-cache-dir \
 # We drop them into the system PCM repository path so they appear under
 # "Downloaded Plugins" on first GUI start. They are *not* enabled automatically;
 # the user enables them from PCM after first launch.
-install -d -m 0755 /usr/local/share/kicad/8.0/3rdparty/plugins
+install -d -m 0755 /usr/local/share/kicad/10.0/3rdparty/plugins
 
 # Download the latest tagged releases from the upstream repos and extract
 # into the PCM plugins directory. Pinned to known-good versions.
@@ -141,12 +148,12 @@ install -d -m 0755 /tmp/plugins/ibom
 curl -fsSL https://github.com/Bouni/kicad-jlcpcb-tools/archive/refs/tags/2026.04.03.tar.gz \
     | tar xzf - -C /tmp/plugins/jlc --strip-components=1 \
         --exclude='*/.github' --exclude='*/.git*'
-mv /tmp/plugins/jlc "/usr/local/share/kicad/8.0/3rdparty/plugins/com_github_bouni_kicad_jlcpcb_tools"
+mv /tmp/plugins/jlc "/usr/local/share/kicad/10.0/3rdparty/plugins/com_github_bouni_kicad_jlcpcb_tools"
 
 curl -fsSL https://github.com/openscopeproject/InteractiveHtmlBom/archive/refs/tags/v2.11.2.tar.gz \
     | tar xzf - -C /tmp/plugins/ibom --strip-components=1 \
         --exclude='*/.github' --exclude='*/.git*'
-mv /tmp/plugins/ibom "/usr/local/share/kicad/8.0/3rdparty/plugins/org_openscopeproject_interactivehtmlbom"
+mv /tmp/plugins/ibom "/usr/local/share/kicad/10.0/3rdparty/plugins/org_openscopeproject_interactivehtmlbom"
 
 rm -rf /tmp/plugins
 

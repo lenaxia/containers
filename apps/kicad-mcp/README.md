@@ -1,6 +1,6 @@
 # kicad-mcp
 
-MCP (Model Context Protocol) server bridging LLM agents to KiCad 9.
+MCP (Model Context Protocol) server bridging LLM agents to KiCad 10.
 
 Built and used by the [talos-ops-prod](https://github.com/lenaxia/talos-ops-prod)
 cluster — see `docs/kicad-streaming-workstation.md` in that repo for the full
@@ -54,13 +54,11 @@ See [`server.py`](src/kicad_mcp/server.py). Summary:
 
 ## Why not KiCad IPC API?
 
-KiCad 9's IPC API is PCB-editor-only and **requires the GUI running** —
-there's no headless mode until KiCad 11 ships. This server is intentionally
-file-based so it works in a headless pod (no X server needed in this image).
-
-When KiCad 11 lands, this server gains an optional `ipc_*` tool set that
-connects to `/tmp/kicad/api.sock` (shared emptyDir with the kicad-desktop pod)
-for live in-process board manipulation.
+KiCad 10's IPC API (gRPC/NNG) has improved headless support over 9, but this
+v1 server is intentionally file-based so it works in a headless pod with no
+GUI dependency. When ready, the installed `kicad-python` client can connect to
+the GUI's UNIX socket at `/tmp/kicad/api.sock` (shared emptyDir with the
+kicad-desktop pod) for live in-process board manipulation.
 
 ## Local dev
 
