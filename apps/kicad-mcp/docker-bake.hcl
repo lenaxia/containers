@@ -19,7 +19,6 @@ target "image" {
   inherits = ["docker-metadata-action"]
   args = {
     VERSION = "${VERSION}"
-    VENDOR = "${VENDOR}"
   }
   labels = {
     "org.opencontainers.image.source" = "${SOURCE}"
