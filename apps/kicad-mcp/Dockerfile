@@ -53,20 +53,14 @@ set -eux
 apt-get update
 apt-get install -y --no-install-recommends \
         ca-certificates curl gnupg \
-        software-properties-common \
         python3 python3-pip python3-venv \
         nodejs npm \
-        git
-
-add-apt-repository -y universe
-
-echo "resconf kicad-common kicad-common/accepted_eula boolean true" | debconf-set-selections
-
-apt-get update
-apt-get install -y --no-install-recommends \
+        git \
         kicad \
-        kicad-libraries \
         python3-kicad-pcbnew
+
+# Pre-seed debconf so apt doesn't prompt for the kicad-common fonts EULA.
+echo "resconf kicad-common kicad-common/accepted_eula boolean true" | debconf-set-selections
 
 apt-get clean
 rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*

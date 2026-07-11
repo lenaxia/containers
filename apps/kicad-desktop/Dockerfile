@@ -52,20 +52,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # ──────────────────────────────────────────────────────────────────────────────
 # 1. KiCad — installed via Ubuntu universe repository.
 #    The old apt.kicad.org repo was decommissioned after the KiCad 10.0 release.
-#    Ubuntu 24.04 (noble) ships KiCad 8.0 in universe, which includes kicad-cli
-#    and python3-kicad-pcbnew. The plugin versions below have been checked
-#    against KiCad 8 compatibility.
+#    Ubuntu 24.04 (noble) ships KiCad in universe.
 # ──────────────────────────────────────────────────────────────────────────────
-RUN <<'EOF'
-set -eux
-# Enable universe — preinstalled on ubuntu:24.04 images but be explicit.
-apt-get update
-apt-get install -y --no-install-recommends software-properties-common
-add-apt-repository -y universe
-
-# Pre-seed debconf so apt doesn't prompt for the kicad-common fonts EULA.
-echo "resconf kicad-common kicad-common/accepted_eula boolean true" | debconf-set-selections
-EOF
+# (No separate RUN — apt-get update + install kicad happens in the main
+#  install block below.)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 2. LizardByte Sunshine — download .deb from GitHub releases.
@@ -90,12 +80,11 @@ RUN <<'EOF'
 set -eux
 apt-get update
 
-# KiCad 8 (Ubuntu 24.04 universe). Includes kicad-cli, kicad-symbols,
-# kicad-footprints, kicad-templates.
+# KiCad (Ubuntu 24.04 universe). The kicad metapackage pulls in kicad-cli,
+# kicad-symbols, kicad-footprints, and core dependencies.
 apt-get install -y --no-install-recommends \
         kicad \
-        kicad-libraries \
-        kicad-packages3d \
+        kicad-demos \
         python3-kicad-pcbnew
 
 # Window managers: keep Xfce4 from base image as the full session; add IceWM
