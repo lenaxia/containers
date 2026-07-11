@@ -196,8 +196,7 @@ EXPOSE 8080 8081 9081 3478 47984 47989 47990 48010
 # The Selkies base image uses /etc/entrypoint.sh to start Xvfb, Xfce4,
 # and the Selkies-GStreamer pipeline. We wrap it to also launch Sunshine
 # after the X server is ready, then keep the container alive.
-COPY entrypoint-wrapper.sh /usr/local/bin/entrypoint-wrapper.sh
-RUN chmod +x /usr/local/bin/entrypoint-wrapper.sh
+COPY --chmod=0755 entrypoint-wrapper.sh /usr/local/bin/entrypoint-wrapper.sh
 
 ENTRYPOINT ["/usr/local/bin/entrypoint-wrapper.sh"]
 CMD []
