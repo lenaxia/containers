@@ -41,7 +41,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     HOME=/home/app \
-    XDG_CACHE_HOME=/home/app/.cache
+    XDG_CACHE_HOME=/home/app/.cache \
+    # kicad_mcp is COPY'd to /app/kicad_mcp — put /app on the import path so
+    # `python3 -m kicad_mcp` resolves without a pip install step.
+    PYTHONPATH=/app
 
 USER root
 
