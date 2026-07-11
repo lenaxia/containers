@@ -193,10 +193,10 @@ WORKDIR /home/ubuntu
 #   48010/tcp  Sunshine RTSP setup
 EXPOSE 8080 8081 9081 3478 47984 47989 47990 48010
 
-# The Selkies base image uses /etc/entrypoint.sh to start Xvfb, Xfce4,
-# and the Selkies-GStreamer pipeline. We wrap it to also launch Sunshine
-# after the X server is ready, then keep the container alive.
-COPY --chmod=0755 entrypoint-wrapper.sh /usr/local/bin/entrypoint-wrapper.sh
-
-ENTRYPOINT ["/usr/local/bin/entrypoint-wrapper.sh"]
+# Inherit the Selkies base image's entrypoint (supervisord). The base image's
+# /etc/supervisord.conf already defines all Selkies programs (entrypoint,
+# selkies-gstreamer, nginx, pipewire, etc.) with nodaemon=true. Our
+# sunshine.conf in conf.d adds Sunshine as an additional supervised program.
+# Do NOT override ENTRYPOINT — let the base image's supervisord entrypoint run.
+ENTRYPOINT ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
 CMD []

@@ -5,7 +5,7 @@ variable "VERSION" {
   // KiCad version is whatever the apt repo serves at build time.
   // The Selkies base image version is tracked via the renovate datasource below.
   // renovate: datasource=docker depName=ghcr.io/selkies-project/selkies-gstreamer/gst-py-example versioning=loose
-  default = "0.2.2"
+  default = "0.3.0"
 }
 
 variable "SOURCE" {

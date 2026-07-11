@@ -12,7 +12,6 @@
 *
 !Dockerfile
 !sunshine.conf
-!entrypoint-wrapper.sh
 !kicad-autostart.desktop
 !docker-bake.hcl
 !tests.yaml
