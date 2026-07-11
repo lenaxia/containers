@@ -81,11 +81,12 @@ set -eux
 apt-get update
 
 # KiCad (Ubuntu 24.04 universe). The kicad metapackage pulls in kicad-cli,
-# kicad-symbols, kicad-footprints, and core dependencies.
+# kicad-symbols, kicad-footprints, and core dependencies. On Ubuntu 24.04 the
+# pcbnew Python bindings ship inside the kicad package itself (no separate
+# python3-kicad-pcbnew package in universe).
 apt-get install -y --no-install-recommends \
         kicad \
-        kicad-demos \
-        python3-kicad-pcbnew
+        kicad-demos
 
 # Window managers: keep Xfce4 from base image as the full session; add IceWM
 # as an ultra-lightweight fallback WM (no compositor, no panel) for users who

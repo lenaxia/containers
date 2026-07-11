@@ -56,8 +56,7 @@ apt-get install -y --no-install-recommends \
         python3 python3-pip python3-venv \
         nodejs npm \
         git \
-        kicad \
-        python3-kicad-pcbnew
+        kicad
 
 # Pre-seed debconf so apt doesn't prompt for the kicad-common fonts EULA.
 echo "resconf kicad-common kicad-common/accepted_eula boolean true" | debconf-set-selections
