@@ -85,9 +85,13 @@ EOF
 #    (mirrors the hass-mcp deployment in this cluster)
 # ──────────────────────────────────────────────────────────────────────────────
 RUN npm install -g supergateway@3.4.3
-# npm's global bin location varies by distro/prefix; symlink to a known path
-# so the ENTRYPOINT below resolves reliably.
-RUN ln -sf "$(npm prefix -g)/bin/supergateway" /usr/local/bin/supergateway
+# Resolve the supergateway JS entry point at build time and create a wrapper
+# script at a fixed path. This avoids symlink issues (npm's global bin location
+# varies by platform and can create circular symlinks).
+RUN NODE_BIN=$(command -v node) \
+    && SG_ENTRY=$(node -e "console.log(require.resolve('supergateway'))") \
+    && printf '#!/bin/sh\nexec %s %s "$@"\n' "$NODE_BIN" "$SG_ENTRY" > /usr/local/bin/supergateway \
+    && chmod +x /usr/local/bin/supergateway
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 4. Application code

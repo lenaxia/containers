@@ -167,8 +167,8 @@ COPY kicad-autostart.desktop /etc/xdg/autostart/kicad.desktop
 RUN install -d -o 1000 -g 1000 -m 0755 /config/sunshine
 
 # supervisord in the base image logs to /var/log/supervisor/ — create it so
-# the container starts cleanly on a fresh filesystem layer.
-RUN install -d -m 0755 /var/log/supervisor
+# the container starts cleanly. Owned by the runtime user (ubuntu, UID 1000).
+RUN install -d -o 1000 -g 1000 -m 0755 /var/log/supervisor
 
 # Switch back to the Selkies base runtime user (UID 1000 = ubuntu).
 USER ubuntu:ubuntu
