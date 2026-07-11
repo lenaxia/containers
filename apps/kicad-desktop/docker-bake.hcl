@@ -1,11 +1,11 @@
 target "docker-metadata-action" {}
 
 variable "VERSION" {
-  // Selkies base image is tagged by branch (main) + Ubuntu release.
-  // KiCad version is whatever the apt repo serves as 9.0.* on build day.
-  // Renovate updates the base image digest via the dockerDatasource below.
+  // Image version is semver-tagged by the CI app-builder pipeline.
+  // KiCad version is whatever the apt repo serves at build time.
+  // The Selkies base image version is tracked via the renovate datasource below.
   // renovate: datasource=docker depName=ghcr.io/selkies-project/selkies-gstreamer/gst-py-example versioning=loose
-  default = "main-ubuntu24.04"
+  default = "0.2.0"
 }
 
 variable "SOURCE" {
