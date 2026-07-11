@@ -1,0 +1,23 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/goss-org/goss/master/docs/schema.yaml
+process:
+  python3:
+    running: true
+
+file:
+  /usr/bin/supergateway:
+    exists: true
+  /usr/bin/kicad-cli:
+    exists: true
+  /usr/bin/kibot:
+    exists: true
+
+# supergateway listens on :8000 once spawned.
+port:
+  tcp:8000:
+    listening: true
+    timeout: 30000
+
+http:
+  http://localhost:8000/healthz:
+    status: 200

@@ -1,0 +1,34 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/goss-org/goss/master/docs/schema.yaml
+# Validates the kicad-desktop image. dgoss runs the container for ~60s to let
+# supervisord boot, then probes these assertions.
+#
+# The container needs /dev/dri for VAAPI but goss probes do not require it;
+# they only verify that binaries are installed and listening.
+process:
+  supervisord:
+    running: true
+
+file:
+  # KiCad binaries
+  /usr/bin/kicad:
+    exists: true
+  /usr/bin/kicad-cli:
+    exists: true
+  # Sunshine
+  /usr/bin/sunshine:
+    exists: true
+  # VAAPI stack
+  /usr/bin/vainfo:
+    exists: true
+  # Python tooling
+  /usr/bin/kibot:
+    exists: true
+
+# Selkies NGINX listens on 8080 once supervisord has booted the full stack.
+# Probe period is 60s in dgoss GOSS_OPTS (set in CI); should be enough for
+# Xvfb + Xfce4 + selkies-gstreamer + nginx to start.
+port:
+  tcp6:8080:
+    listening: true
+    timeout: 60000

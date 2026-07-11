@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kicad-mcp"
+version = "0.1.0"
+description = "MCP server bridging LLM agents to KiCad 9 (kicad-cli + kibot + pcbnew)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "mcp[cli]>=1.0,<2.0",
+    "kibot",
+    "skidl",
+    "kiutils",
+    "kicad-python",
+    "pyyaml",
+    "httpx",
+]
+
+[project.scripts]
+kicad-mcp = "kicad_mcp.server:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["kicad_mcp*"]

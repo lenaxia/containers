@@ -1,0 +1,21 @@
+# XDG autostart entry that launches KiCad after the Xfce4 session starts.
+# KiCad's window will be visible through both Selkies (browser) and Sunshine
+# (Moonlight) since they share DISPLAY=:20.
+#
+# To disable KiCad autostart, delete this file or set Hidden=true via a
+# downstream overlay.
+
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=KiCad
+GenericName=EDA Suite
+Comment=Electronic Design Automation
+Icon=kicad
+Exec=/usr/bin/kicad %U
+TryExec=/usr/bin/kicad
+Terminal=false
+Categories=Development;Electronics;
+MimeType=application/x-kicad-project;application/x-kicad-schematic;application/x-kicad-board;
+X-GNOME-Autostart-enabled=true
+Hidden=false
