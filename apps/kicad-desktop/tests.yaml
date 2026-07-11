@@ -1,37 +1,43 @@
 ---
-# yaml-language-server: $schema=https://raw.githubusercontent.com/goss-org/goss/master/docs/schema.yaml
-# Validates the kicad-desktop image.
-#
-# NOTE: we only check file existence here, NOT process/port state. The full
-# supervisord-managed stack (Xvfb + Xfce4 + Selkies + Sunshine + nginx + coturn)
-# needs /dev/dri (Intel GPU) and a real display subsystem to boot, which the
-# GitHub Actions runner doesn't have. Booting supervisord in CI would fail
-# partway through and make the test flaky. The runtime probes live in
-# docs/kicad-streaming-workstation.md (validation checklist) for the operator
-# to run against the deployed pod.
-file:
-  # KiCad binaries
-  /usr/bin/kicad:
-    exists: true
-  /usr/bin/kicad-cli:
-    exists: true
-  # Sunshine
-  /usr/bin/sunshine:
-    exists: true
-  # VAAPI stack
-  /usr/bin/vainfo:
-    exists: true
-  # Python tooling
-  /usr/bin/kibot:
-    exists: true
-  # supervisord drop-in for Sunshine
-  /etc/supervisor/conf.d/sunshine.conf:
-    exists: true
-  # KiCad autostart
-  /etc/xdg/autostart/kicad.desktop:
-    exists: true
-  # KiCad PCM plugins
-  /usr/local/share/kicad/10.0/3rdparty/plugins/com_github_bouni_kicad_jlcpcb_tools:
-    exists: true
-  /usr/local/share/kicad/10.0/3rdparty/plugins/org_openscopeproject_interactivehtmlbom:
-    exists: true
+schemaVersion: 2.0.0
+# container-structure-test format (NOT goss). The presence of schemaVersion
+# tells setup.sh to download container-structure-test instead of goss/dgoss.
+# container-structure-test inspects image layers WITHOUT running the container,
+# which is essential here: the kicad-desktop image's supervisord stack needs
+# /dev/dri + a real display subsystem that the GitHub Actions runner lacks.
+# Runtime validation (vainfo, gst-inspect, kicad-cli, sunshine) is documented
+# in docs/kicad-streaming-workstation.md for the operator to run on the pod.
+
+fileContentTests:
+  - name: "supervisord sunshine drop-in references the Sunshine binary"
+    path: /etc/supervisor/conf.d/sunshine.conf
+    expectedContents: ["command=/usr/bin/sunshine"]
+
+fileExistenceTests:
+  - name: "kicad binary"
+    path: /usr/bin/kicad
+    shouldExist: true
+  - name: "kicad-cli binary"
+    path: /usr/bin/kicad-cli
+    shouldExist: true
+  - name: "sunshine binary"
+    path: /usr/bin/sunshine
+    shouldExist: true
+  - name: "vainfo binary"
+    path: /usr/bin/vainfo
+    shouldExist: true
+  - name: "kibot binary"
+    path: /usr/bin/kibot
+    shouldExist: true
+  - name: "supervisord sunshine drop-in"
+    path: /etc/supervisor/conf.d/sunshine.conf
+    shouldExist: true
+  - name: "kicad XDG autostart"
+    path: /etc/xdg/autostart/kicad.desktop
+    shouldExist: true
+  - name: "JLC-PCB-tools PCM plugin"
+    path: /usr/local/share/kicad/10.0/3rdparty/plugins/com_github_bouni_kicad_jlcpcb_tools
+    shouldExist: true
+  - name: "InteractiveHtmlBom PCM plugin"
+    path: /usr/local/share/kicad/10.0/3rdparty/plugins/org_openscopeproject_interactivehtmlbom
+    shouldExist: true
