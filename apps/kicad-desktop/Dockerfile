@@ -68,26 +68,23 @@ echo "resconf kicad-common kicad-common/accepted_eula boolean true" | debconf-se
 EOF
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 2. LizardByte Sunshine apt repo (for Moonlight host)
+# 2. LizardByte Sunshine — download .deb from GitHub releases.
+#    The old ghproxy.lizardbyte.dev apt repo is deprecated.
+#    Renovate: datasource=github-releases depName=LizardByte/Sunshine
 # ──────────────────────────────────────────────────────────────────────────────
 RUN <<'EOF'
 set -eux
-# LizardByte publishes an apt repo at lizardbyte.dev. Read it via the
-# GitHub proxy they document at https://docs.lizardbyte.dev/sunshine/latest/.
-install -d -m 0755 /etc/apt/keyrings
-curl -fsSL https://ghproxy.lizardbyte.dev/__github__/LizardByte/.github/raw/master/keys/sunshine \
-    | gpg --dearmor --yes -o /etc/apt/keyrings/sunshine.gpg
-chmod 0644 /etc/apt/keyrings/sunshine.gpg
-
-# The repo is keyed to the *Ubuntu release name*. The Selkies base is
-# ubuntu:24.04 (noble). Update if you rebase.
-. /etc/os-release
-echo "deb [signed-by=/etc/apt/keyrings/sunshine.gpg] http://ghproxy.lizardbyte.dev/__github__/LizardByte/.github/deb/ubuntu ${UBUNTU_CODENAME:-noble} main" \
-    > /etc/apt/sources.list.d/sunshine.list
+apt-get update
+SUNSHINE_VER="v2025.122.141614"
+SUNSHINE_DEB="sunshine-ubuntu-24.04-amd64.deb"
+curl -fsSL -o "/tmp/${SUNSHINE_DEB}" \
+    "https://github.com/LizardByte/Sunshine/releases/download/${SUNSHINE_VER}/${SUNSHINE_DEB}"
+apt-get install -y --no-install-recommends "/tmp/${SUNSHINE_DEB}"
+rm -f "/tmp/${SUNSHINE_DEB}"
 EOF
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 3. KiCad 9 + Sunshine + WM + VAAPI + Python tooling
+# 3. KiCad + WM + VAAPI + Python tooling
 # ──────────────────────────────────────────────────────────────────────────────
 RUN <<'EOF'
 set -eux
@@ -100,9 +97,6 @@ apt-get install -y --no-install-recommends \
         kicad-libraries \
         kicad-packages3d \
         python3-kicad-pcbnew
-
-# Sunshine (Moonlight host). Brings in libboost, libva, libavcodec, miniupnpc.
-apt-get install -y --no-install-recommends sunshine
 
 # Window managers: keep Xfce4 from base image as the full session; add IceWM
 # as an ultra-lightweight fallback WM (no compositor, no panel) for users who
