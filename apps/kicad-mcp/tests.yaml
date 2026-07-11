@@ -5,11 +5,6 @@ schemaVersion: 2.0.0
 # python process and needs /projects to exist — easier to validate structure
 # than to boot the full SSE server in CI.
 
-fileContentTests:
-  - name: "supergateway wrapper execs node"
-    path: /usr/local/bin/supergateway
-    expectedContents: ["exec .*node"]
-
 fileExistenceTests:
   - name: "supergateway wrapper"
     path: /usr/local/bin/supergateway

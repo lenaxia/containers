@@ -26,8 +26,8 @@ fileExistenceTests:
   - name: "vainfo binary"
     path: /usr/bin/vainfo
     shouldExist: true
-  - name: "kibot binary"
-    path: /usr/bin/kibot
+  - name: "kibot binary (pip-installed)"
+    path: /usr/local/bin/kibot
     shouldExist: true
   - name: "supervisord sunshine drop-in"
     path: /etc/supervisor/conf.d/sunshine.conf
