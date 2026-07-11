@@ -1,0 +1,43 @@
+---
+schemaVersion: 2.0.0
+# container-structure-test format (NOT goss). The presence of schemaVersion
+# tells setup.sh to download container-structure-test instead of goss/dgoss.
+# container-structure-test inspects image layers WITHOUT running the container,
+# which is essential here: the kicad-desktop image's supervisord stack needs
+# /dev/dri + a real display subsystem that the GitHub Actions runner lacks.
+# Runtime validation (vainfo, gst-inspect, kicad-cli, sunshine) is documented
+# in docs/kicad-streaming-workstation.md for the operator to run on the pod.
+
+fileContentTests:
+  - name: "supervisord sunshine drop-in references the Sunshine binary"
+    path: /etc/supervisor/conf.d/sunshine.conf
+    expectedContents: ["command=/usr/bin/sunshine"]
+
+fileExistenceTests:
+  - name: "kicad binary"
+    path: /usr/bin/kicad
+    shouldExist: true
+  - name: "kicad-cli binary"
+    path: /usr/bin/kicad-cli
+    shouldExist: true
+  - name: "sunshine binary"
+    path: /usr/bin/sunshine
+    shouldExist: true
+  - name: "vainfo binary"
+    path: /usr/bin/vainfo
+    shouldExist: true
+  - name: "kibot binary (pip-installed)"
+    path: /usr/local/bin/kibot
+    shouldExist: true
+  - name: "supervisord sunshine drop-in"
+    path: /etc/supervisor/conf.d/sunshine.conf
+    shouldExist: true
+  - name: "kicad XDG autostart"
+    path: /etc/xdg/autostart/kicad.desktop
+    shouldExist: true
+  - name: "JLC-PCB-tools PCM plugin"
+    path: /usr/local/share/kicad/10.0/3rdparty/plugins/com_github_bouni_kicad_jlcpcb_tools
+    shouldExist: true
+  - name: "InteractiveHtmlBom PCM plugin"
+    path: /usr/local/share/kicad/10.0/3rdparty/plugins/org_openscopeproject_interactivehtmlbom
+    shouldExist: true

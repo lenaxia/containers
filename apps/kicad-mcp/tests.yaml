@@ -1,0 +1,32 @@
+---
+schemaVersion: 2.0.0
+# container-structure-test format. Inspects image layers without running the
+# container. The kicad-mcp container's supergateway entrypoint spawns a child
+# python process and needs /projects to exist — easier to validate structure
+# than to boot the full SSE server in CI.
+
+fileExistenceTests:
+  - name: "supergateway wrapper"
+    path: /usr/local/bin/supergateway
+    shouldExist: true
+  - name: "kicad-cli binary"
+    path: /usr/bin/kicad-cli
+    shouldExist: true
+  - name: "kibot binary (pip-installed)"
+    path: /usr/local/bin/kibot
+    shouldExist: true
+  - name: "kicad_mcp Python package"
+    path: /app/kicad_mcp/__init__.py
+    shouldExist: true
+  - name: "kicad_mcp server module"
+    path: /app/kicad_mcp/server.py
+    shouldExist: true
+  - name: "kicad_mcp runner module"
+    path: /app/kicad_mcp/runner.py
+    shouldExist: true
+
+commandTests:
+  - name: "python3 can import kicad_mcp"
+    command: "python3"
+    args: ["-c", "import kicad_mcp; print(kicad_mcp.__version__)"]
+    expectedOutput: ["0.1.0"]
