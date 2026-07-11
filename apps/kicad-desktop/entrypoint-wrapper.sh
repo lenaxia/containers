@@ -22,5 +22,18 @@ chmod 700 "$XDG_RUNTIME_DIR"
 ) &
 
 # Execute the Selkies base image entrypoint (starts Xvfb, Xfce4,
-# Selkies-GStreamer, NGINX, etc.). This script blocks on `read`.
-exec /etc/entrypoint.sh
+# Selkies-GStreamer pipeline, etc.). The entrypoint ends with:
+#   echo "Session Running. Press [Return] to exit."
+#   read
+#
+# In Kubernetes there is no stdin, so `read` gets EOF immediately and the
+# script exits, killing the container. We pipe "x" to satisfy `read` —
+# this causes the script to exit AFTER starting all background processes
+# (Xvfb, Xfce4, GStreamer). Then we block forever with tail.
+#
+# Background processes (Xvfb, Xfce4) survive because they are reparented
+# to PID 1 (this shell) when the entrypoint subshell exits.
+/etc/entrypoint.sh <<< "x" || true
+
+# Keep the container alive after the entrypoint exits.
+exec tail -f /dev/null
