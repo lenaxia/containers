@@ -89,11 +89,11 @@ set -eux
 apt-get update
 
 # KiCad 10 from the PPA. The metapackage 'kicad' depends on kicad-cli,
-# kicad-symbols, kicad-footprints, kicad-templates. kicad-library-packages3d
-# is split out — pull it in for the 3D viewer.
-apt-get install -y --no-install-recommends \
-        kicad \
-        kicad-library-packages3d
+# kicad-symbols, kicad-footprints, kicad-templates, and pulls in 3D models
+# via recommends. Use --no-install-recommends only for the WM/VAAPI sections
+# below; for KiCad itself we want the full suite including 3D packages.
+apt-get install -y \
+        kicad
 
 # Window managers: keep Xfce4 from base image as the full session; add IceWM
 # as an ultra-lightweight fallback WM (no compositor, no panel) for users who

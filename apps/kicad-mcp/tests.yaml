@@ -16,7 +16,6 @@ file:
 port:
   tcp:8000:
     listening: true
-    timeout: 30000
 
 http:
   http://localhost:8000/healthz:

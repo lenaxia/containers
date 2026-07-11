@@ -31,4 +31,3 @@ file:
 port:
   tcp6:8080:
     listening: true
-    timeout: 60000
