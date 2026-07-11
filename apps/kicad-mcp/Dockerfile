@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 #
-# kicad-mcp — MCP server that bridges an LLM agent to KiCad 9 projects.
+# kicad-mcp — MCP server that bridges an LLM agent to KiCad 8 projects.
 #
 # Architecture:
 #   Node supergateway (HTTP/SSE on :8000)  ←  spawns stdio child  ←
@@ -19,12 +19,12 @@
 #   - Project discovery: list projects under /projects, open/inspect a project
 #   - Triggering of the kicad-kibot Kubernetes Job for heavy CI runs (RBAC'd)
 #
-# KiCad IPC API: NOT used in v1. KiCad 9's IPC API is PCB-editor-only and
-# requires the GUI running. KiCad 11 (not yet released) adds headless IPC.
+# KiCad IPC API: NOT used in v1. KiCad 8's IPC API is PCB-editor-only and
+# requires the GUI running. Later versions may add headless IPC.
 # When KiCad 11 ships, this server gains an optional IPC client path that
 # connects to /tmp/kicad/api.sock (shared emptyDir with the kicad-desktop pod).
 #
-# Multi-arch: amd64 only (KiCad apt repo).
+# Multi-arch: amd64 only (Ubuntu amd64 packages).
 
 ARG TARGETARCH
 FROM docker.io/library/ubuntu:24.04
@@ -45,33 +45,29 @@ ENV DEBIAN_FRONTEND=noninteractive \
 USER root
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 1. KiCad 9 apt repo (for kicad-cli + pcbnew python bindings, NO GUI)
+# 1. KiCad — Ubuntu universe (no custom apt repo).
+#    The old apt.kicad.org was decommissioned after KiCad 10.0.
 # ──────────────────────────────────────────────────────────────────────────────
 RUN <<'EOF'
 set -eux
 apt-get update
 apt-get install -y --no-install-recommends \
         ca-certificates curl gnupg \
+        software-properties-common \
         python3 python3-pip python3-venv \
         nodejs npm \
         git
 
-install -d -m 0755 /etc/apt/keyrings
-curl -fsSL https://kicad.org/gtest.asc \
-    | gpg --dearmor --yes -o /etc/apt/keyrings/kicad.gpg
-chmod 0644 /etc/apt/keyrings/kicad.gpg
-echo "deb [signed-by=/etc/apt/keyrings/kicad.gpg] http://apt.kicad.org kicad-9.0 main" \
-    > /etc/apt/sources.list.d/kicad.list
+add-apt-repository -y universe
 
 echo "resconf kicad-common kicad-common/accepted_eula boolean true" | debconf-set-selections
 
 apt-get update
 apt-get install -y --no-install-recommends \
-        kicad=9.0.* \
+        kicad \
         kicad-libraries \
         python3-kicad-pcbnew
 
-# Cleanup
 apt-get clean
 rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 EOF

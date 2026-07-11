@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1
 #
-# KiCad 9 Streaming Workstation (Intel VAAPI / Quick Sync)
+# KiCad 8 Streaming Workstation (Intel VAAPI / Quick Sync)
 #
 # Single image bundling:
 #   - Xvfb + Xfce4 + IceWM         (graphical session)
-#   - KiCad 9 + community plugins  (eeschema + pcbnew)
+#   - KiCad 8 (Ubuntu universe) + community plugins (eeschema + pcbnew)
 #   - Selkies-GStreamer             (browser WebRTC, H.264 via VAAPI)
 #   - Sunshine                      (Moonlight native-client host, VAAPI)
 #   - supervisord                   (process supervisor)
@@ -50,21 +50,18 @@ ENV DEBIAN_FRONTEND=noninteractive \
     KICAD_DOCUMENTS_HOME=/config/kicad
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 1. KiCad 9.0 official apt repo
+# 1. KiCad — installed via Ubuntu universe repository.
+#    The old apt.kicad.org repo was decommissioned after the KiCad 10.0 release.
+#    Ubuntu 24.04 (noble) ships KiCad 8.0 in universe, which includes kicad-cli
+#    and python3-kicad-pcbnew. The plugin versions below have been checked
+#    against KiCad 8 compatibility.
 # ──────────────────────────────────────────────────────────────────────────────
 RUN <<'EOF'
 set -eux
-# KiCad's repo signing key (kicad.org/gtest.asc; this is the documented path
-# from https://dev.kicad.org/kicad-addons/ ).
-install -d -m 0755 /etc/apt/keyrings
-curl -fsSL https://kicad.org/gtest.asc \
-    | gpg --dearmor --yes -o /etc/apt/keyrings/kicad.gpg
-chmod 0644 /etc/apt/keyrings/kicad.gpg
-
-# kicad-9.0 release channel. See https://packages.debian.org and
-# https://dev.kicad.org/linux/ for the suite name.
-echo "deb [signed-by=/etc/apt/keyrings/kicad.gpg] http://apt.kicad.org kicad-9.0 main" \
-    > /etc/apt/sources.list.d/kicad.list
+# Enable universe — preinstalled on ubuntu:24.04 images but be explicit.
+apt-get update
+apt-get install -y --no-install-recommends software-properties-common
+add-apt-repository -y universe
 
 # Pre-seed debconf so apt doesn't prompt for the kicad-common fonts EULA.
 echo "resconf kicad-common kicad-common/accepted_eula boolean true" | debconf-set-selections
@@ -96,11 +93,10 @@ RUN <<'EOF'
 set -eux
 apt-get update
 
-# KiCad 9 (full meta + libs + 3D models). Pin to 9.0.* so a future 9.1 in the
-# repo doesn't silently change behaviour. The metapackage 'kicad' depends on
-# kicad-cli, kicad-symbols, kicad-footprints, kicad-templates, kicad-packages3d.
+# KiCad 8 (Ubuntu 24.04 universe). Includes kicad-cli, kicad-symbols,
+# kicad-footprints, kicad-templates.
 apt-get install -y --no-install-recommends \
-        kicad=9.0.* \
+        kicad \
         kicad-libraries \
         kicad-packages3d \
         python3-kicad-pcbnew
@@ -152,7 +148,7 @@ pip3 install --break-system-packages --no-cache-dir \
 # We drop them into the system PCM repository path so they appear under
 # "Downloaded Plugins" on first GUI start. They are *not* enabled automatically;
 # the user enables them from PCM after first launch.
-install -d -m 0755 /usr/local/share/kicad/9.0/3rdparty/plugins
+install -d -m 0755 /usr/local/share/kicad/8.0/3rdparty/plugins
 
 # Download the latest tagged releases from the upstream repos and extract
 # into the PCM plugins directory. Pinned to known-good versions.
@@ -160,12 +156,12 @@ install -d -m 0755 /tmp/plugins
 curl -fsSL https://github.com/Bouni/kicad-jlcpcb-tools/archive/refs/tags/v2025.4.0.tar.gz \
     | tar xzf - -C /tmp/plugins --strip-components=1 \
         --exclude='*/.github' --exclude='*/.git*'
-mv /tmp/plugins "/usr/local/share/kicad/9.0/3rdparty/plugins/com_github_bouni_kicad_jlcpcb_tools"
+mv /tmp/plugins "/usr/local/share/kicad/8.0/3rdparty/plugins/com_github_bouni_kicad_jlcpcb_tools"
 
 curl -fsSL https://github.com/openscopeproject/InteractiveHtmlBom/archive/refs/tags/2.11.1.tar.gz \
     | tar xzf - -C /tmp/plugins --strip-components=1 \
         --exclude='*/.github' --exclude='*/.git*'
-mv /tmp/plugins "/usr/local/share/kicad/9.0/3rdparty/plugins/org_openscopeproject_interactivehtmlbom"
+mv /tmp/plugins "/usr/local/share/kicad/8.0/3rdparty/plugins/org_openscopeproject_interactivehtmlbom"
 
 rm -rf /tmp/plugins
 
