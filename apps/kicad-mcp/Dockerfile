@@ -85,6 +85,9 @@ EOF
 #    (mirrors the hass-mcp deployment in this cluster)
 # ──────────────────────────────────────────────────────────────────────────────
 RUN npm install -g supergateway@3.4.3
+# npm's global bin location varies by distro/prefix; symlink to a known path
+# so the ENTRYPOINT below resolves reliably.
+RUN ln -sf "$(npm prefix -g)/bin/supergateway" /usr/local/bin/supergateway
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 4. Application code
@@ -106,7 +109,7 @@ EXPOSE 8000
 # supergateway on :8000 (SSE + health), spawns `python3 -m kicad_mcp` as the
 # stdio child. The kicad_mcp module reads PROJECTS_DIR=/projects to discover
 # projects. All tools are read/list/exec — no auth, in-cluster only.
-ENTRYPOINT ["/usr/bin/supergateway"]
+ENTRYPOINT ["/usr/local/bin/supergateway"]
 CMD [ \
     "--stdio", "python3 -m kicad_mcp", \
     "--port", "8000", \
