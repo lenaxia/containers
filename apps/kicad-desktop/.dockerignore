@@ -1,0 +1,17 @@
+# Overrides the repo-level /include/.dockerignore that would otherwise
+# exclude everything at the context root (/*).
+# The rsync step uses --ignore-existing, so this file takes priority.
+#
+# Files needed for the kicad-desktop build:
+#   - Dockerfile (consumed by buildx bake, not copied into the image)
+#   - sunshine.conf (COPY'd by the Dockerfile)
+#   - kicad-autostart.desktop (COPY'd by the Dockerfile)
+#   - docker-bake.hcl, tests.yaml (build/metadata only, not in the image)
+
+# Ignore nothing — the Dockerfile uses explicit COPY paths, not COPY . /
+*
+!Dockerfile
+!sunshine.conf
+!kicad-autostart.desktop
+!docker-bake.hcl
+!tests.yaml
