@@ -4,7 +4,7 @@ variable "VERSION" {
   // Image version is the kicad-mcp source version (semver of this dir).
   // KiCad version is whatever apt serves as 9.0.* at build time — not tracked here.
   // renovate: datasource=github-releases depName=lenaxia/containers versioning=semver
-  default = "0.1.1"
+  default = "0.1.2"
 }
 
 variable "SOURCE" {

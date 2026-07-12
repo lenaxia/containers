@@ -105,6 +105,7 @@ RUN npm install -g supergateway@3.4.3
 # module (avoids the symlink/circular-link issues with npm global bin).
 RUN NODE_BIN=$(command -v node) \
     && NODE_GLOBAL=$(npm root -g) \
+    && rm -f /usr/local/bin/supergateway \
     && printf '#!/bin/sh\nexport NODE_PATH=%s\nexec %s %s/supergateway/dist/index.js "$@"\n' \
         "$NODE_GLOBAL" "$NODE_BIN" "$NODE_GLOBAL" > /usr/local/bin/supergateway \
     && chmod +x /usr/local/bin/supergateway
