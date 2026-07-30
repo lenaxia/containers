@@ -1,0 +1,14 @@
+# Overrides the repo-level /include/.dockerignore that would otherwise
+# exclude everything at the context root (/*).
+# The rsync step uses --ignore-existing, so this file takes priority.
+#
+# Files needed for the opengist-mcp build:
+#   - Dockerfile (consumed by buildx bake, not copied into the image)
+#   - src/ (COPY'd by the Dockerfile — COPY src/opengist_mcp ./opengist_mcp)
+#   - docker-bake.hcl, tests.yaml (build/metadata only, not in the image)
+
+*
+!Dockerfile
+!src/
+!docker-bake.hcl
+!tests.yaml
