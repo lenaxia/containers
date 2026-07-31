@@ -12,6 +12,7 @@ Auth model:
 from __future__ import annotations
 
 import os
+import time
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import quote
@@ -117,6 +118,7 @@ class OpengistClient:
         json: dict | None = None,
     ) -> httpx.Response:
         url = f"{self._base_url}/api{path}"
+        last_resp: httpx.Response | None = None
         for attempt in range(self._max_retries + 1):
             resp = self._http.request(
                 method,
@@ -125,7 +127,9 @@ class OpengistClient:
                 params=params,
                 json=json,
             )
+            last_resp = resp
             if resp.status_code in _RETRY_STATUSES and attempt < self._max_retries:
+                time.sleep(0.5)
                 continue
             if resp.status_code >= 400:
                 try:
@@ -135,7 +139,8 @@ class OpengistClient:
                     msg = resp.text
                 raise OpengistError(resp.status_code, msg)
             return resp
-        raise OpengistError(503, "max retries exceeded for transient failures")
+        assert last_resp is not None
+        raise OpengistError(last_resp.status_code, last_resp.text)
 
     # ── Gists: list ───────────────────────────────────────────────────────────
 

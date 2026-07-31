@@ -29,12 +29,12 @@ mcp = FastMCP("opengist-mcp")
 _client: OpengistClient | None = None
 
 
-def _get_client(token: str | None = None) -> OpengistClient:
-    """Return a singleton client.
+def _get_client() -> OpengistClient:
+    """Return a singleton client for HTTP connection reuse.
 
-    The per-call token (if provided) is set as a one-shot override via the
-    client's default-token mechanism. This avoids creating a new httpx.Client
-    (and new TCP connections) on every tool call.
+    Token is NOT handled here — each tool forwards its ``token`` param
+    to the client method call directly, avoiding race conditions from
+    mutating shared singleton state under concurrent dispatch.
     """
     global _client
     if _client is None:
@@ -49,11 +49,6 @@ def _get_client(token: str | None = None) -> OpengistClient:
             timeout=timeout,
         )
         atexit.register(_client.close)
-    saved = _client._default_token
-    if token:
-        _client._default_token = token
-    else:
-        _client._default_token = os.environ.get("OPENGIST_TOKEN")
     return _client
 
 
@@ -77,9 +72,6 @@ def _page_to_dict(page) -> dict:
     }
 
 
-# ── Gists: list ───────────────────────────────────────────────────────────────
-
-
 @mcp.tool()
 def list_gists(
     page: int = 1,
@@ -99,8 +91,10 @@ def list_gists(
     Returns JSON: items, page, per_page, total, total_pages, has_next, has_prev.
     """
     try:
-        client = _get_client(token)
-        page_result = client.list_gists(page=page, per_page=per_page, since=since)
+        client = _get_client()
+        page_result = client.list_gists(
+            page=page, per_page=per_page, since=since, token=token
+        )
         return json.dumps(_page_to_dict(page_result), indent=2)
     except Exception as e:
         return _error(e)
@@ -124,9 +118,9 @@ def list_public_gists(
     Returns JSON with pagination metadata.
     """
     try:
-        client = _get_client(token)
+        client = _get_client()
         page_result = client.list_public_gists(
-            page=page, per_page=per_page, since=since
+            page=page, per_page=per_page, since=since, token=token
         )
         return json.dumps(_page_to_dict(page_result), indent=2)
     except Exception as e:
@@ -147,14 +141,13 @@ def list_forked_gists(
     Returns JSON with pagination metadata.
     """
     try:
-        client = _get_client(token)
-        page_result = client.list_forked_gists(page=page, per_page=per_page)
+        client = _get_client()
+        page_result = client.list_forked_gists(
+            page=page, per_page=per_page, token=token
+        )
         return json.dumps(_page_to_dict(page_result), indent=2)
     except Exception as e:
         return _error(e)
-
-
-# ── Gists: single ─────────────────────────────────────────────────────────────
 
 
 @mcp.tool()
@@ -168,8 +161,8 @@ def get_gist(uuid: str, token: str | None = None) -> str:
     Returns JSON: full gist including files, commits, and forks.
     """
     try:
-        client = _get_client(token)
-        gist = client.get_gist(uuid)
+        client = _get_client()
+        gist = client.get_gist(uuid, token=token)
         return json.dumps(gist, indent=2)
     except Exception as e:
         return _error(e)
@@ -200,7 +193,7 @@ def create_gist(
     Returns JSON: the created gist.
     """
     try:
-        client = _get_client(token)
+        client = _get_client()
         api_files = {name: {"content": content} for name, content in files.items()}
         gist = client.create_gist(
             title=title,
@@ -209,6 +202,7 @@ def create_gist(
             visibility=visibility,
             topics=topics,
             expire=expire,
+            token=token,
         )
         return json.dumps(gist, indent=2)
     except Exception as e:
@@ -238,7 +232,7 @@ def update_gist(
     Returns JSON: the updated gist.
     """
     try:
-        client = _get_client(token)
+        client = _get_client()
         api_files: dict | None = None
         if files is not None:
             api_files = {}
@@ -250,6 +244,7 @@ def update_gist(
             description=description,
             visibility=visibility,
             files=api_files,
+            token=token,
         )
         return json.dumps(gist, indent=2)
     except Exception as e:
@@ -267,14 +262,11 @@ def delete_gist(uuid: str, token: str | None = None) -> str:
     Returns JSON: {"ok": true} on success.
     """
     try:
-        client = _get_client(token)
-        client.delete_gist(uuid)
+        client = _get_client()
+        client.delete_gist(uuid, token=token)
         return json.dumps({"ok": True}, indent=2)
     except Exception as e:
         return _error(e)
-
-
-# ── Fork ──────────────────────────────────────────────────────────────────────
 
 
 @mcp.tool()
@@ -288,14 +280,11 @@ def fork_gist(uuid: str, token: str | None = None) -> str:
     Returns JSON: the forked gist (new or existing).
     """
     try:
-        client = _get_client(token)
-        gist = client.fork_gist(uuid)
+        client = _get_client()
+        gist = client.fork_gist(uuid, token=token)
         return json.dumps(gist, indent=2)
     except Exception as e:
         return _error(e)
-
-
-# ── Commits & Revisions ───────────────────────────────────────────────────────
 
 
 @mcp.tool()
@@ -313,8 +302,10 @@ def list_gist_commits(
     Returns JSON with pagination metadata.
     """
     try:
-        client = _get_client(token)
-        page_result = client.list_gist_commits(uuid, page=page, per_page=per_page)
+        client = _get_client()
+        page_result = client.list_gist_commits(
+            uuid, page=page, per_page=per_page, token=token
+        )
         return json.dumps(_page_to_dict(page_result), indent=2)
     except Exception as e:
         return _error(e)
@@ -332,8 +323,8 @@ def get_gist_revision(uuid: str, sha: str, token: str | None = None) -> str:
     Returns JSON: the gist at the requested revision.
     """
     try:
-        client = _get_client(token)
-        gist = client.get_gist_revision(uuid, sha)
+        client = _get_client()
+        gist = client.get_gist_revision(uuid, sha, token=token)
         return json.dumps(gist, indent=2)
     except Exception as e:
         return _error(e)
@@ -352,8 +343,8 @@ def get_raw_file(uuid: str, sha: str, filename: str, token: str | None = None) -
     Returns the raw file content as a string.
     """
     try:
-        client = _get_client(token)
-        content = client.get_raw_file(uuid, sha, filename)
+        client = _get_client()
+        content = client.get_raw_file(uuid, sha, filename, token=token)
         return content
     except Exception as e:
         return _error(e)
@@ -374,14 +365,13 @@ def list_gist_forks(
     Returns JSON with pagination metadata.
     """
     try:
-        client = _get_client(token)
-        page_result = client.list_gist_forks(uuid, page=page, per_page=per_page)
+        client = _get_client()
+        page_result = client.list_gist_forks(
+            uuid, page=page, per_page=per_page, token=token
+        )
         return json.dumps(_page_to_dict(page_result), indent=2)
     except Exception as e:
         return _error(e)
-
-
-# ── Users ─────────────────────────────────────────────────────────────────────
 
 
 @mcp.tool()
@@ -394,8 +384,8 @@ def get_authenticated_user(token: str | None = None) -> str:
     Returns JSON: the user's profile including email.
     """
     try:
-        client = _get_client(token)
-        user = client.get_authenticated_user()
+        client = _get_client()
+        user = client.get_authenticated_user(token=token)
         return json.dumps(user, indent=2)
     except Exception as e:
         return _error(e)
@@ -412,14 +402,11 @@ def get_user(username: str, token: str | None = None) -> str:
     Returns JSON: the user's public profile.
     """
     try:
-        client = _get_client(token)
-        user = client.get_user(username)
+        client = _get_client()
+        user = client.get_user(username, token=token)
         return json.dumps(user, indent=2)
     except Exception as e:
         return _error(e)
-
-
-# ── Health ────────────────────────────────────────────────────────────────────
 
 
 @mcp.tool(description="Health / sanity probe. Returns server version + Opengist URL.")
