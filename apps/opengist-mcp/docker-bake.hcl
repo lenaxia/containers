@@ -1,6 +1,7 @@
 target "docker-metadata-action" {}
 
 variable "VERSION" {
+  // renovate: datasource=github-releases depName=lenaxia/containers versioning=semver
   default = "0.1.0"
 }
 

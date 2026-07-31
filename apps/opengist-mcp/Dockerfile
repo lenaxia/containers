@@ -17,12 +17,11 @@
 #
 # Multi-arch: amd64 only.
 
-FROM docker.io/library/python:3.12-slim
+FROM docker.io/library/python:3.13-alpine3.21
 ARG VERSION
 ARG VENDOR
 
-ENV DEBIAN_FRONTEND=noninteractive \
-    TZ=UTC \
+ENV TZ=UTC \
     LANG=C.UTF-8 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -33,29 +32,18 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 USER root
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 1. System deps + Node.js (for supergateway)
-# ──────────────────────────────────────────────────────────────────────────────
 RUN <<'EOF'
 set -eux
-apt-get update
-apt-get install -y --no-install-recommends \
-        ca-certificates curl \
-        nodejs npm
-apt-get clean
-rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+apk add --no-cache \
+        ca-certificates \
+        nodejs \
+        npm
 EOF
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 2. Python deps
-# ──────────────────────────────────────────────────────────────────────────────
 RUN pip3 install --no-cache-dir \
         "mcp[cli]>=1.0,<2.0" \
         "httpx>=0.27,<1.0"
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 3. supergateway — wraps stdio MCP servers as HTTP/SSE endpoints
-# ──────────────────────────────────────────────────────────────────────────────
 RUN npm install -g supergateway@3.4.3
 RUN NODE_BIN=$(command -v node) \
     && NODE_GLOBAL=$(npm root -g) \
@@ -64,16 +52,10 @@ RUN NODE_BIN=$(command -v node) \
         "$NODE_GLOBAL" "$NODE_BIN" "$NODE_GLOBAL" > /usr/local/bin/supergateway \
     && chmod +x /usr/local/bin/supergateway
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 4. Application code
-# ──────────────────────────────────────────────────────────────────────────────
 WORKDIR /app
 COPY src/opengist_mcp ./opengist_mcp
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 5. Runtime user — matches the cluster default (APP_UID=568)
-# ──────────────────────────────────────────────────────────────────────────────
-RUN groupadd -g 568 app && useradd -u 568 -g 568 -d /home/app -m -s /usr/sbin/nologin app \
+RUN addgroup -g 568 app && adduser -u 568 -G app -D -h /home/app -s /sbin/nologin app \
     && install -d -o 568 -g 568 -m 0755 /home/app
 
 USER app:app

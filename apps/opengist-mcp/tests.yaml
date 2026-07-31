@@ -16,6 +16,9 @@ fileExistenceTests:
   - name: "opengist_mcp client module"
     path: /app/opengist_mcp/client.py
     shouldExist: true
+  - name: "opengist_mcp entrypoint"
+    path: /app/opengist_mcp/__main__.py
+    shouldExist: true
 
 commandTests:
   - name: "python3 can import opengist_mcp"
