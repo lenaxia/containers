@@ -2,7 +2,7 @@ target "docker-metadata-action" {}
 
 variable "VERSION" {
   // renovate: datasource=docker depName=ghcr.io/kiwigrid/k8s-sidecar
-  default = "2.8.1"
+  default = "2.10.0"
 }
 
 variable "SOURCE" {

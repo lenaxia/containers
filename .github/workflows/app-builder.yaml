@@ -23,7 +23,7 @@ jobs:
       platforms: ${{ steps.app-options.outputs.platforms }}
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
 
@@ -46,7 +46,7 @@ jobs:
           upstream-version: ${{ steps.app-options.outputs.version }}
 
       - name: Build Application Metadata
-        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6.1.0
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         id: meta
         env:
           DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
@@ -79,7 +79,7 @@ jobs:
     runs-on: ${{ startsWith(matrix.platform, 'linux/arm') && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
 
@@ -97,7 +97,7 @@ jobs:
           app: ${{ inputs.app }}
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4.5.1
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -110,14 +110,14 @@ jobs:
           path: ${{ runner.temp }}
 
       - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
       - name: Add Include Directory to Build Context
         run: |
           rsync -a --ignore-existing --progress ./include/ ./apps/${{ inputs.app }}/
 
       - name: Build Application
-        uses: docker/bake-action@6614cfa25eff9a0b2b2697efb0b6159e7680d584 # v7.2.0
+        uses: docker/bake-action@d3418bd7d0e9324001bca92fa8ba175ea7e6dc9b # v7.3.0
         id: bake
         with:
           files: |
@@ -171,7 +171,7 @@ jobs:
       digest: ${{ steps.digest.outputs.digest }}
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
 
@@ -189,7 +189,7 @@ jobs:
           merge-multiple: true
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4.5.1
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -232,12 +232,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout (for local actions)
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4.5.1
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -261,7 +261,7 @@ jobs:
 
       - name: Attestation
         if: ${{ inputs.app != 'tabbyapi' }}  # Skip attestation for CUDA images since SBOM is skipped
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
           push-to-registry: true
           subject-name: ghcr.io/${{ github.repository_owner }}/${{ inputs.app }}
@@ -291,7 +291,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
 
@@ -335,7 +335,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout (for local actions)
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
 

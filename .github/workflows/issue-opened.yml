@@ -1,0 +1,19 @@
+name: Issue Opened
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  id-token: write
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  respond:
+    uses: lenaxia/ai-workflows/.github/workflows/issue-opened.yml@374b026a6ff2e471f5aad733b58acb68c81e4b53 # v0.2.0
+    secrets: inherit
+    with:
+      version: v0.2.0
+      project_name: containers
