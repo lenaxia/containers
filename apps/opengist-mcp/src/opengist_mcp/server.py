@@ -9,6 +9,7 @@ Spec: https://github.com/thomiceli/opengist/blob/master/docs/api.md
 
 from __future__ import annotations
 
+import atexit
 import json
 import logging
 import os
@@ -25,19 +26,35 @@ logging.basicConfig(
 
 mcp = FastMCP("opengist-mcp")
 
+_client: OpengistClient | None = None
+
 
 def _get_client(token: str | None = None) -> OpengistClient:
-    """Build a client. The per-call token (if provided) takes precedence."""
-    base_url = os.environ.get("OPENGIST_URL", "")
-    if not base_url:
-        raise OpengistError(500, "OPENGIST_URL environment variable is not set")
-    default_token = os.environ.get("OPENGIST_TOKEN")
-    timeout = int(os.environ.get("OPENGIST_TIMEOUT", "30"))
-    return OpengistClient(
-        base_url=base_url,
-        token=token or default_token,
-        timeout=timeout,
-    )
+    """Return a singleton client.
+
+    The per-call token (if provided) is set as a one-shot override via the
+    client's default-token mechanism. This avoids creating a new httpx.Client
+    (and new TCP connections) on every tool call.
+    """
+    global _client
+    if _client is None:
+        base_url = os.environ.get("OPENGIST_URL", "")
+        if not base_url:
+            raise OpengistError(500, "OPENGIST_URL environment variable is not set")
+        default_token = os.environ.get("OPENGIST_TOKEN")
+        timeout = int(os.environ.get("OPENGIST_TIMEOUT", "30"))
+        _client = OpengistClient(
+            base_url=base_url,
+            token=default_token,
+            timeout=timeout,
+        )
+        atexit.register(_client.close)
+    saved = _client._default_token
+    if token:
+        _client._default_token = token
+    else:
+        _client._default_token = os.environ.get("OPENGIST_TOKEN")
+    return _client
 
 
 def _error(e: Exception) -> str:
@@ -100,7 +117,7 @@ def list_public_gists(
 
     Args:
         page: Page number (default 1).
-        per_page: Items per page (default 30).
+        per_page: Items per page (default 30, max 100).
         since: Only return gists updated at/after this RFC 3339 timestamp.
         token: Optional API token. Overrides the default.
 
@@ -124,7 +141,7 @@ def list_forked_gists(
 
     Args:
         page: Page number (default 1).
-        per_page: Items per page (default 30).
+        per_page: Items per page (default 30, max 100).
         token: Optional API token. Overrides the default.
 
     Returns JSON with pagination metadata.
@@ -165,6 +182,7 @@ def create_gist(
     description: str | None = None,
     visibility: str = "public",
     topics: list[str] | None = None,
+    expire: str | None = None,
     token: str | None = None,
 ) -> str:
     """Create a new gist.
@@ -175,6 +193,7 @@ def create_gist(
         description: Optional description.
         visibility: 'public' (default), 'unlisted', or 'private'.
         topics: Optional list of topic tags.
+        expire: Optional expiration (e.g. '24h', '7d', '30m').
         token: Optional API token to create as a specific user.
                Overrides the default OPENGIST_TOKEN.
 
@@ -189,6 +208,7 @@ def create_gist(
             files=api_files,
             visibility=visibility,
             topics=topics,
+            expire=expire,
         )
         return json.dumps(gist, indent=2)
     except Exception as e:
@@ -201,7 +221,7 @@ def update_gist(
     title: str | None = None,
     description: str | None = None,
     visibility: str | None = None,
-    files: dict | None = None,
+    files: dict[str, str | None] | None = None,
     token: str | None = None,
 ) -> str:
     """Update a gist's title, description, visibility, or files.
@@ -211,7 +231,7 @@ def update_gist(
         title: New title (optional).
         description: New description (optional).
         visibility: 'public', 'unlisted', or 'private' (optional).
-        files: Dict of filename → {"content": "..."} to update/add, or
+        files: Dict of filename → content string to update/add, or
                filename → null to delete. At least one field must be set.
         token: Optional API token. Overrides the default.
 
@@ -219,12 +239,17 @@ def update_gist(
     """
     try:
         client = _get_client(token)
+        api_files: dict | None = None
+        if files is not None:
+            api_files = {}
+            for name, content in files.items():
+                api_files[name] = {"content": content} if content is not None else None
         gist = client.update_gist(
             uuid,
             title=title,
             description=description,
             visibility=visibility,
-            files=files,
+            files=api_files,
         )
         return json.dumps(gist, indent=2)
     except Exception as e:
@@ -249,7 +274,7 @@ def delete_gist(uuid: str, token: str | None = None) -> str:
         return _error(e)
 
 
-# ── Fork & Like ───────────────────────────────────────────────────────────────
+# ── Fork ──────────────────────────────────────────────────────────────────────
 
 
 @mcp.tool()
@@ -282,7 +307,7 @@ def list_gist_commits(
     Args:
         uuid: The gist's UUID.
         page: Page number (default 1).
-        per_page: Items per page (default 30).
+        per_page: Items per page (default 30, max 100).
         token: Optional API token. Overrides the default.
 
     Returns JSON with pagination metadata.
@@ -343,7 +368,7 @@ def list_gist_forks(
     Args:
         uuid: The gist's UUID.
         page: Page number (default 1).
-        per_page: Items per page (default 30).
+        per_page: Items per page (default 30, max 100).
         token: Optional API token. Overrides the default.
 
     Returns JSON with pagination metadata.

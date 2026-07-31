@@ -526,3 +526,95 @@ class TestErrorHandling:
             with pytest.raises(OpengistError) as exc_info:
                 client.get_gist("abc123")
             assert "Gist not found" in str(exc_info.value)
+
+
+# ── URL escaping ──────────────────────────────────────────────────────────────
+
+
+class TestUrlEscaping:
+    """User-supplied values must be URL-encoded in path segments."""
+
+    def test_gist_uuid_with_slash_is_escaped(self, client):
+        with respx.mock(base_url=BASE) as mock:
+            route = mock.get("/api/gists/abc%2F123").mock(
+                return_value=httpx.Response(200, json=_gist_detail("abc/123"))
+            )
+            client.get_gist("abc/123")
+            assert route.called
+
+    def test_username_with_special_chars_escaped(self, anon_client):
+        with respx.mock(base_url=BASE) as mock:
+            route = mock.get("/api/users/alice%2Bbob").mock(
+                return_value=httpx.Response(200, json=_user("alice+bob"))
+            )
+            anon_client.get_user("alice+bob")
+            assert route.called
+
+    def test_filename_with_spaces_escaped(self, client):
+        with respx.mock(base_url=BASE) as mock:
+            route = mock.get("/api/gists/abc/files/sha1/my%20file.txt").mock(
+                return_value=httpx.Response(200, content=b"content")
+            )
+            client.get_raw_file("abc", "sha1", "my file.txt")
+            assert route.called
+
+
+# ── Retry on transient failures ───────────────────────────────────────────────
+
+
+class TestRetry:
+    """5xx responses should be retried once before surfacing."""
+
+    def test_503_retried_then_succeeds(self):
+        c = OpengistClient(base_url=BASE, token=TOKEN, max_retries=1)
+        with respx.mock(base_url=BASE) as mock:
+            route = mock.get("/api/gists/abc").mock(
+                side_effect=[
+                    httpx.Response(503),
+                    httpx.Response(200, json=_gist_detail("abc")),
+                ]
+            )
+            gist = c.get_gist("abc")
+            assert gist["id"] == "abc"
+            assert route.call_count == 2
+
+    def test_502_retried_then_fails(self):
+        c = OpengistClient(base_url=BASE, token=TOKEN, max_retries=1)
+        with respx.mock(base_url=BASE) as mock:
+            mock.get("/api/gists/abc").mock(return_value=httpx.Response(502))
+            with pytest.raises(OpengistError, match="502"):
+                c.get_gist("abc")
+
+    def test_404_not_retried(self, client):
+        with respx.mock(base_url=BASE) as mock:
+            route = mock.get("/api/gists/abc").mock(
+                return_value=httpx.Response(
+                    404, json={"message": "Not found", "status": 404}
+                )
+            )
+            with pytest.raises(OpengistError, match="404"):
+                client.get_gist("abc")
+            assert route.call_count == 1
+
+
+# ── per_page clamping ─────────────────────────────────────────────────────────
+
+
+class TestPerPageClamping:
+    """per_page must be clamped to [1, 100]."""
+
+    def test_per_page_over_100_clamped(self, client):
+        with respx.mock(base_url=BASE) as mock:
+            route = mock.get("/api/gists").mock(
+                return_value=httpx.Response(200, json=[])
+            )
+            list(client.list_gists(per_page=500))
+            assert route.calls[0].request.url.params["per_page"] == "100"
+
+    def test_per_page_zero_clamped(self, client):
+        with respx.mock(base_url=BASE) as mock:
+            route = mock.get("/api/gists").mock(
+                return_value=httpx.Response(200, json=[])
+            )
+            list(client.list_gists(per_page=0))
+            assert route.calls[0].request.url.params["per_page"] == "1"

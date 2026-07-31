@@ -51,6 +51,9 @@ class TestHealth:
 
 
 class TestEnvResolution:
+    def setup_method(self):
+        server._client = None
+
     @patch.dict(
         os.environ,
         {"OPENGIST_URL": "https://custom.example.com", "OPENGIST_TOKEN": "og_custom"},
@@ -66,11 +69,13 @@ class TestEnvResolution:
         clear=False,
     )
     def test_timeout_env_var(self):
+        server._client = None
         client = server._get_client()
         assert client._timeout == 60
 
     @patch.dict(os.environ, {}, clear=True)
     def test_missing_url_raises(self):
+        server._client = None
         with pytest.raises(OpengistError, match="OPENGIST_URL"):
             server._get_client()
 
@@ -154,6 +159,7 @@ class TestSingleGistTools:
             files={"readme.md": {"content": "# Hello"}},
             visibility="unlisted",
             topics=None,
+            expire=None,
         )
 
     @patch.object(server, "_get_client")
@@ -178,6 +184,36 @@ class TestSingleGistTools:
         server.update_gist("abc", title="New Title")
         mock_client.update_gist.assert_called_once_with(
             "abc", title="New Title", description=None, visibility=None, files=None
+        )
+
+    @patch.object(server, "_get_client")
+    def test_update_gist_converts_files_format(self, mock_get):
+        mock_client = MagicMock()
+        mock_client.update_gist.return_value = _gist("abc")
+        mock_get.return_value = mock_client
+
+        server.update_gist("abc", files={"readme.md": "new content"})
+        mock_client.update_gist.assert_called_once_with(
+            "abc",
+            title=None,
+            description=None,
+            visibility=None,
+            files={"readme.md": {"content": "new content"}},
+        )
+
+    @patch.object(server, "_get_client")
+    def test_update_gist_delete_file_via_null(self, mock_get):
+        mock_client = MagicMock()
+        mock_client.update_gist.return_value = _gist("abc")
+        mock_get.return_value = mock_client
+
+        server.update_gist("abc", files={"old.txt": None})
+        mock_client.update_gist.assert_called_once_with(
+            "abc",
+            title=None,
+            description=None,
+            visibility=None,
+            files={"old.txt": None},
         )
 
     @patch.object(server, "_get_client")

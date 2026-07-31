@@ -25,3 +25,6 @@ commandTests:
     command: "python3"
     args: ["-c", "import opengist_mcp; print(opengist_mcp.__version__)"]
     expectedOutput: ["0.1.0"]
+
+metadataTest:
+  user: "app"

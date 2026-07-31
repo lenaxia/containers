@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "opengist-mcp"
-version = "0.1.0"
+dynamic = ["version"]
 description = "MCP server bridging LLM agents to Opengist"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -27,6 +27,9 @@ opengist-mcp = "opengist_mcp.server:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["opengist_mcp*"]
+
+[tool.setuptools.dynamic]
+version = { attr = "opengist_mcp.__version__" }
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
