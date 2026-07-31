@@ -1,0 +1,30 @@
+---
+schemaVersion: 2.0.0
+# container-structure-test format. Inspects image layers without running the
+# container.
+
+fileExistenceTests:
+  - name: "supergateway wrapper"
+    path: /usr/local/bin/supergateway
+    shouldExist: true
+  - name: "opengist_mcp Python package"
+    path: /app/opengist_mcp/__init__.py
+    shouldExist: true
+  - name: "opengist_mcp server module"
+    path: /app/opengist_mcp/server.py
+    shouldExist: true
+  - name: "opengist_mcp client module"
+    path: /app/opengist_mcp/client.py
+    shouldExist: true
+  - name: "opengist_mcp entrypoint"
+    path: /app/opengist_mcp/__main__.py
+    shouldExist: true
+
+commandTests:
+  - name: "python3 can import opengist_mcp"
+    command: "python3"
+    args: ["-c", "import opengist_mcp; print(opengist_mcp.__version__)"]
+    expectedOutput: ["0.1.0"]
+
+metadataTest:
+  user: "app"
