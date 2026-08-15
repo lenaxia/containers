@@ -40,7 +40,7 @@ permissions:
 
 jobs:
   analyze-prs:
-    uses: lenaxia/ai-workflows/.github/workflows/renovate-analysis.yml@v0.2.10
+    uses: lenaxia/ai-workflows/.github/workflows/renovate-analysis.yml@5f900a244307742c21918da334993a3f044bbd6f # v0.2.10
     secrets: inherit
     with:
       project_name: containers
