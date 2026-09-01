@@ -17,9 +17,16 @@ tasks:
   init:
     desc: Initialize the project
     cmds:
-      - mkdir -p {{.BIN_DIR}}/{goss,dgoss}
-      - gh release download --repo goss-org/goss --skip-existing --pattern "*-linux-{{ARCH}}" --output {{.BIN_DIR}}/goss/goss
-      - gh release download --repo goss-org/goss --skip-existing --pattern "dgoss" --output {{.BIN_DIR}}/goss/dgoss
+      - mkdir -p {{.BIN_DIR}}/goss {{.BIN_DIR}}/dgoss
+      - |
+        if [[ ! -x {{.BIN_DIR}}/goss/goss ]]; then
+          GOSS_ARCH="{{ARCH}}"
+          [[ "${GOSS_ARCH}" == "amd64" ]] && GOSS_ARCH="x86_64"
+          gh release download --repo goss-org/goss --pattern "goss_*_linux_${GOSS_ARCH}.tar.gz" --output /tmp/goss.tar.gz
+          tar -xzf /tmp/goss.tar.gz -C {{.BIN_DIR}}/goss goss
+          rm -f /tmp/goss.tar.gz
+        fi
+      - gh release download --repo goss-org/goss --skip-existing --pattern "dgoss" --output {{.BIN_DIR}}/dgoss/dgoss
       - chmod +x {{.BIN_DIR}}/goss/goss {{.BIN_DIR}}/dgoss/dgoss
     preconditions:
       - which gh
@@ -32,7 +39,7 @@ tasks:
       - rsync -a --ignore-existing --progress {{.ROOT_DIR}}/apps/{{.APP}}/ {{.WORK_DIR}}
       - docker buildx bake --no-cache --metadata-file docker-bake.json --load
       - |
-        IMAGE=$(jq --raw-output '."image-local"."image.name"' docker-bake.json)
+        IMAGE=$(jq --raw-output '."image-local"."containerimage.config.digest"' docker-bake.json)
         case "{{.TEST_TOOL}}" in
             "cst")
                 container-structure-test test --image "${IMAGE}" --config tests.yaml
