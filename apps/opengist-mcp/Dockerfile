@@ -67,7 +67,6 @@ ENTRYPOINT ["/usr/local/bin/supergateway"]
 CMD [ \
     "--stdio", "python3 -m opengist_mcp", \
     "--port", "8000", \
-    "--transport", "streamable-http", \
     "--healthEndpoint", "/healthz", \
     "--logLevel", "info" \
 ]
