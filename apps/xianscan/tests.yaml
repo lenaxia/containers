@@ -1,0 +1,15 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/goss-org/goss/master/docs/schema.yaml
+process:
+  xianscan:
+    running: true
+port:
+  tcp:8124:
+    listening: true
+http:
+  http://localhost:8124:
+    status: 200
+    timeout: 30000
+  http://localhost:8123/health:
+    status: 200
+    timeout: 30000
