@@ -13,7 +13,8 @@
 FROM docker.io/library/ubuntu:24.04
 ARG VERSION
 
-ENV XDG_DATA_HOME=/config \
+ENV DEBIAN_FRONTEND=noninteractive \
+    XDG_DATA_HOME=/config \
     XDG_CACHE_HOME=/config/.cache \
     HOME=/config
 
@@ -37,7 +38,9 @@ RUN \
     && groupadd -g 568 app \
     && useradd -u 568 -g 568 -d /config -M -s /usr/sbin/nologin app \
     && mkdir -p /config \
-    && chown -R app:app /config /app
+    && chown -R app:app /config \
+    && chown -R root:root /app \
+    && chmod -R 755 /app
 
 USER app:app
 

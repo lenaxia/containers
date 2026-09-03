@@ -3,6 +3,13 @@
 process:
   xianscan:
     running: true
+file:
+  /app/xianscan:
+    exists: true
+    filetype: file
+    owner: root
+    group: root
+    mode: "0755"
 port:
   tcp:8124:
     listening: true
