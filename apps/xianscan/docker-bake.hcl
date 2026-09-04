@@ -2,7 +2,7 @@ target "docker-metadata-action" {}
 
 variable "VERSION" {
   // renovate: datasource=github-releases depName=ArbenApura/xianscan-rust
-  default = "0.5.0-beta.2"
+  default = "0.5.0-beta.3"
 }
 
 variable "SOURCE" {
