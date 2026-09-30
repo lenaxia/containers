@@ -7,13 +7,20 @@ exactly one *mode* and exits.
 
 ## Modes
 
-| Mode         | Script                 | What it does                                                                                  |
-| ------------ | ---------------------- | --------------------------------------------------------------------------------------------- |
-| `daily`      | `control.py`           | Daily mark-to-market of the CONTROL buy-and-hold clone; idempotent per UTC day, self-skips weekends |
-| `ddgate`     | `trade.py`             | Drawdown gate / decision engine: checks -5% stop / +15% target exits before entries, market-hours guarded (Mon-Fri 13:30-20:00 UTC) |
-| `scoreboard` | `forward/forward.py`  | Forward tracker: refetches daily OHLC, replays all out-of-sample variants, prints comparison JSON |
-| `heartbeat`  | `poll.py`              | Hourly account/context poll, writes `last_poll.json`                                          |
-| `panel`      | `marketdata.py`        | Full-universe live snapshot (the monthly panel)                                               |
+| Mode         | Script(s)                            | What it does                                                                 |
+| ------------ | ------------------------------------ | ---------------------------------------------------------------------------- |
+| `daily`      | `daily_run.py`                       | Full daily workflow, no LLM: marketdata snapshot -> trade decision -> execute exits then gated entries (DD veto via `dd_verdicts.json`, then headline screen; max 2 trades/day) -> one platform post (biggest mover, alternating `/signals/strategy` / `/discussion`) -> state + log updates. State root is `/data` |
+| `ddgate`     | `dd_screen.py`                       | TradingAgents deep-dive on buy candidates (veto-only). **Needs the TA venv** — this image does not carry it; the mode prints a clear error and exits 1. The DD gate runs workspace-side until a TA-enabled image lands (the k8s CronJob ships suspended) |
+| `scoreboard` | `forward/forward.py` **and** `control.py` | Forward tracker (refetch, replay OOS variants, comparison JSON), then the CONTROL buy-and-hold clone mark-to-market |
+| `heartbeat`  | `poll.py`                            | Hourly account/context poll, writes `last_poll.json`                          |
+| `panel`      | `aihf_panel.py`                      | AIHF panel — stub for now (prints a pending note, exit 0) pending `FINANCIAL_DATASETS_API_KEY` + mandate wiring |
+
+`daily_run.py` keeps its state (`state.json`, `log.txt`, `dd_verdicts.json`,
+optional `credentials.json` fallback) under `DATA_DIR` (env `AI4TRADE_DATA_DIR`,
+default `/data`); the legacy scripts keep theirs under `/workspace/ai4trade`. In
+Kubernetes the same PVC is mounted at both paths, so there is one source of
+truth. Trades execute via `POST {base}/signals/realtime` (same endpoint/shape as
+`deploy_sleeve.py`); the token is never logged.
 
 ## Layout
 

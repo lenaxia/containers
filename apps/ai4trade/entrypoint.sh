@@ -30,6 +30,9 @@ cp -f \
     "${SRC}/trade.py" \
     "${SRC}/control.py" \
     "${SRC}/poll.py" \
+    "${SRC}/daily_run.py" \
+    "${SRC}/aihf_panel.py" \
+    "${SRC}/dd_screen.py" \
     "${SRC}/universe.txt" \
     "${SRC}/personal_sleeve.json" \
     "${WS}/"
@@ -69,26 +72,31 @@ fi
 
 case "${MODE}" in
     daily)
-        # Daily control-portfolio mark-to-market (idempotent per UTC day,
-        # skips weekends on its own)
-        python3 "${WS}/control.py"
+        # Full daily workflow (no LLM): marketdata -> trade decision ->
+        # execute exits then two-layer-gated entries (dd_verdicts.json veto +
+        # headline screen, max 2 trades/day) -> one platform post -> state/log
+        python3 "${WS}/daily_run.py"
         ;;
     ddgate)
-        # Drawdown gate / trading decision engine — stop-loss (-5%) and
-        # target (+15%) exit checks before entries; market-hours guarded
-        python3 "${WS}/trade.py"
+        # dd_screen.py wraps TradingAgents and needs the TA venv
+        # (integration/vendor/TradingAgents). This image does not carry it:
+        # the DD gate keeps running workspace-side until a TA-enabled image
+        # lands; the k8s CronJob for this mode ships suspended.
+        echo "ddgate: requires the TradingAgents image (integration/vendor/TradingAgents venv) — not included here." >&2
+        echo "ddgate: the DD gate stays workspace-side until a TA image lands." >&2
+        exit 1
         ;;
     scoreboard)
-        # Forward-tracker scoreboard: refetch data, replay all variants,
-        # print the comparison JSON
-        python3 "${WS}/forward/forward.py"
+        # Forward-tracker scoreboard AND the control group: replay all OOS
+        # variants, then mark the CONTROL buy-and-hold clone to market
+        python3 "${WS}/forward/forward.py" && python3 "${WS}/control.py"
         ;;
     heartbeat)
         # Hourly context poller — account summary to last_poll.json
         python3 "${WS}/poll.py"
         ;;
     panel)
-        # Full-universe market snapshot (monthly panel)
-        python3 "${WS}/marketdata.py"
+        # AIHF panel (stub pending FINANCIAL_DATASETS_API_KEY + mandate)
+        python3 "${WS}/aihf_panel.py"
         ;;
 esac

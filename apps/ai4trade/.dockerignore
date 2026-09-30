@@ -4,6 +4,9 @@
 !trade.py
 !control.py
 !poll.py
+!daily_run.py
+!aihf_panel.py
+!dd_screen.py
 !forward/
 !universe.txt
 !personal_sleeve.json

@@ -21,6 +21,18 @@ fileExistenceTests:
   - name: "poll.py"
     path: /opt/ai4trade/poll.py
     shouldExist: true
+  - name: "daily_run.py"
+    path: /opt/ai4trade/daily_run.py
+    shouldExist: true
+  - name: "aihf_panel.py"
+    path: /opt/ai4trade/aihf_panel.py
+    shouldExist: true
+  # dd_screen.py is present for the future TA image but is NOT importable
+  # here (it imports TradingAgents from the integration venv) — file check
+  # only, deliberately excluded from the import smoke test below.
+  - name: "dd_screen.py"
+    path: /opt/ai4trade/dd_screen.py
+    shouldExist: true
   - name: "forward/forward.py"
     path: /opt/ai4trade/forward/forward.py
     shouldExist: true
@@ -35,10 +47,11 @@ commandTests:
   # Import smoke test: modules only define constants/functions at top level
   # (all entry logic sits behind __main__ guards), so importing is side-effect
   # free and writes no bytecode (PYTHONDONTWRITEBYTECODE=1 in the image, and
-  # /opt/ai4trade is read-only for the runtime user).
+  # /opt/ai4trade is read-only for the runtime user). dd_screen.py is excluded
+  # — it imports TradingAgents, which only exists in the TA venv image.
   - name: "python3 imports all ai4trade modules"
     command: "python3"
     args:
       - "-c"
-      - "import sys; sys.path.insert(0, '/opt/ai4trade'); sys.path.insert(0, '/opt/ai4trade/forward'); import marketdata, trade, control, poll, forward; print('ai4trade imports OK')"
+      - "import sys; sys.path.insert(0, '/opt/ai4trade'); sys.path.insert(0, '/opt/ai4trade/forward'); import marketdata, trade, control, poll, daily_run, aihf_panel, forward; print('ai4trade imports OK')"
     expectedOutput: ["ai4trade imports OK"]
