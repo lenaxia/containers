@@ -1,0 +1,35 @@
+{
+  "as_of": "2026-09-29",
+  "source": "Portfolio_Positions_Sep-29-2026.csv",
+  "rsu_excluded": true,
+  "investable_total_usd": 894019.47,
+  "weights_pct": {
+    "VOO": 22.42,
+    "VTI": 18.7,
+    "VXUS": 10.58,
+    "BND": 9.34,
+    "SPYG": 7.44,
+    "VEA": 6.66,
+    "XLK": 6.33,
+    "NVDA": 5.17,
+    "QQQ": 4.58,
+    "AAPL": 4.16,
+    "SPAXX**": 2.7,
+    "FIW": 1.1,
+    "SPY": 0.44,
+    "DAL": 0.28,
+    "CORE**": 0.1
+  },
+  "cash_pct_of_investable": 0.93,
+  "notes": {
+    "VTI": "FSKAX",
+    "VEA": "FOSFX",
+    "XLK": "FSPTX+FTEC",
+    "SPYG": "FSPGX+401k SSGA LC growth",
+    "VOO": "VANG500+55% T2050",
+    "VXUS": "30% T2050",
+    "BND": "FTBFX+15% T2050",
+    "QQQ": "QQQ+QQQJ",
+    "AMZN": "EXCLUDED (unvested RSUs, owner decision)"
+  }
+}

@@ -1,0 +1,44 @@
+---
+schemaVersion: 2.0.0
+# container-structure-test format. Inspects image layers without running the
+# container: the ai4trade entrypoint is a one-shot CronJob command (no
+# long-running process to probe, no ports to listen), so structural checks
+# plus a compile smoke test of every Python entrypoint are the right shape.
+
+fileExistenceTests:
+  - name: "entrypoint"
+    path: /opt/ai4trade/entrypoint.sh
+    shouldExist: true
+  - name: "marketdata.py"
+    path: /opt/ai4trade/marketdata.py
+    shouldExist: true
+  - name: "trade.py"
+    path: /opt/ai4trade/trade.py
+    shouldExist: true
+  - name: "control.py"
+    path: /opt/ai4trade/control.py
+    shouldExist: true
+  - name: "poll.py"
+    path: /opt/ai4trade/poll.py
+    shouldExist: true
+  - name: "forward/forward.py"
+    path: /opt/ai4trade/forward/forward.py
+    shouldExist: true
+  - name: "universe.txt"
+    path: /opt/ai4trade/universe.txt
+    shouldExist: true
+  - name: "personal_sleeve.json"
+    path: /opt/ai4trade/personal_sleeve.json
+    shouldExist: true
+
+commandTests:
+  - name: "python3 compiles all ai4trade entrypoints"
+    command: "python3"
+    args:
+      - "-m"
+      - "py_compile"
+      - "/opt/ai4trade/marketdata.py"
+      - "/opt/ai4trade/trade.py"
+      - "/opt/ai4trade/control.py"
+      - "/opt/ai4trade/poll.py"
+      - "/opt/ai4trade/forward/forward.py"
