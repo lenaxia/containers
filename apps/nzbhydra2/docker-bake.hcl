@@ -2,7 +2,7 @@ target "docker-metadata-action" {}
 
 variable "VERSION" {
   // renovate: datasource=github-releases depName=theotherp/nzbhydra2
-  default = "9.1.0"
+  default = "9.1.1"
 }
 
 variable "SOURCE" {
