@@ -32,13 +32,13 @@ fileExistenceTests:
     shouldExist: true
 
 commandTests:
-  - name: "python3 compiles all ai4trade entrypoints"
+  # Import smoke test: modules only define constants/functions at top level
+  # (all entry logic sits behind __main__ guards), so importing is side-effect
+  # free and writes no bytecode (PYTHONDONTWRITEBYTECODE=1 in the image, and
+  # /opt/ai4trade is read-only for the runtime user).
+  - name: "python3 imports all ai4trade modules"
     command: "python3"
     args:
-      - "-m"
-      - "py_compile"
-      - "/opt/ai4trade/marketdata.py"
-      - "/opt/ai4trade/trade.py"
-      - "/opt/ai4trade/control.py"
-      - "/opt/ai4trade/poll.py"
-      - "/opt/ai4trade/forward/forward.py"
+      - "-c"
+      - "import sys; sys.path.insert(0, '/opt/ai4trade'); sys.path.insert(0, '/opt/ai4trade/forward'); import marketdata, trade, control, poll, forward; print('ai4trade imports OK')"
+    expectedOutput: ["ai4trade imports OK"]
