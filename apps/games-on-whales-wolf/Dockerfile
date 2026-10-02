@@ -10,8 +10,10 @@
 # allocation/import chain against the SAME .91 kernel driver (verified
 # live on the cluster 2026-10-01: gst waylanddisplaysrc CUDAMemory
 # pipeline goes PLAYING with .71 userspace where .91 dies in 30ms).
-# CUDA/compute stays on the injected .91 userspace (libcuda et al are
-# NOT overridden) — vllm and friends are unaffected.
+# CUDA libs ship as .71 too: a mixed .71 EGL + .91 libcuda stack makes
+# eglQueryDevicesEXT fail with EGL_BAD_ALLOC (EGL-CUDA interop version
+# check) killing the compositor. NVENC against the .91 kernel then fails
+# cleanly and wolf falls back to software x264/x265 encode.
 #
 # The operator (fenrir/direwolf) injects its own LD_LIBRARY_PATH for the
 # wolf sidecar; the wolf-root-entrypoint ConfigMap in the cluster repo
@@ -29,6 +31,11 @@ RUN --mount=type=cache,target=/nvidia/cache \
     && sh /tmp/nvidia.run -x --target /tmp/nvx >/dev/null \
     && mkdir -p /nv71 \
     && cd /nv71 \
+    && cp /tmp/nvx/libcuda.so.595.71.05 \
+          /tmp/nvx/libnvidia-ptxjitcompiler.so.595.71.05 \
+          /tmp/nvx/libnvidia-nvvm.so.595.71.05 \
+          /tmp/nvx/libnvidia-fatbinaryloader.so.595.71.05 \
+          /tmp/nvx/libnvidia-compiler.so.595.71.05 \
     && cp /tmp/nvx/libnvidia-allocator.so.595.71.05 \
           /tmp/nvx/libnvidia-eglcore.so.595.71.05 \
           /tmp/nvx/libnvidia-glcore.so.595.71.05 \
@@ -57,7 +64,12 @@ RUN --mount=type=cache,target=/nvidia/cache \
     && ln -s libnvidia-egl-gbm.so.1.1.3 libnvidia-egl-gbm.so.1 \
     && ln -s libnvidia-egl-wayland.so.1.1.20 libnvidia-egl-wayland.so.1 \
     && for f in *.595.71.05; do ln -s "$f" "${f%.595.71.05}.1" 2>/dev/null || true; done \
-    && ln -sf libnvidia-allocator.so.595.71.05 libnvidia-allocator.so.1
+    && ln -sf libnvidia-allocator.so.595.71.05 libnvidia-allocator.so.1 \
+    && ln -sf libcuda.so.595.71.05 libcuda.so.1 \
+    && ln -sf libnvidia-ptxjitcompiler.so.595.71.05 libnvidia-ptxjitcompiler.so.1 \
+    && ln -sf libnvidia-nvvm.so.595.71.05 libnvidia-nvvm.so.3 \
+    && ln -sf libnvidia-fatbinaryloader.so.595.71.05 libnvidia-fatbinaryloader.so.1 \
+    && ln -sf libnvidia-compiler.so.595.71.05 libnvidia-compiler.so.1
 
 # Base: shrinedogg's wolf multi-user fork (carries wolf#466-era fixes).
 # Renovate: digest-pinned; upstream has no version tags — bump via
