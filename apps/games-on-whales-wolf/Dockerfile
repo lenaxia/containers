@@ -34,8 +34,7 @@ RUN --mount=type=cache,target=/nvidia/cache \
     && cp /tmp/nvx/libcuda.so.595.71.05 \
           /tmp/nvx/libnvidia-ptxjitcompiler.so.595.71.05 \
           /tmp/nvx/libnvidia-nvvm.so.595.71.05 \
-          /tmp/nvx/libnvidia-fatbinaryloader.so.595.71.05 \
-          /tmp/nvx/libnvidia-compiler.so.595.71.05 \
+          /tmp/nvx/libnvidia-nvvm70.so.4 \
     && cp /tmp/nvx/libnvidia-allocator.so.595.71.05 \
           /tmp/nvx/libnvidia-eglcore.so.595.71.05 \
           /tmp/nvx/libnvidia-glcore.so.595.71.05 \
@@ -68,8 +67,7 @@ RUN --mount=type=cache,target=/nvidia/cache \
     && ln -sf libcuda.so.595.71.05 libcuda.so.1 \
     && ln -sf libnvidia-ptxjitcompiler.so.595.71.05 libnvidia-ptxjitcompiler.so.1 \
     && ln -sf libnvidia-nvvm.so.595.71.05 libnvidia-nvvm.so.3 \
-    && ln -sf libnvidia-fatbinaryloader.so.595.71.05 libnvidia-fatbinaryloader.so.1 \
-    && ln -sf libnvidia-compiler.so.595.71.05 libnvidia-compiler.so.1
+    && ln -sf libnvidia-nvvm70.so.4 libnvidia-nvvm70.so.4
 
 # Base: shrinedogg's wolf multi-user fork (carries wolf#466-era fixes).
 # Renovate: digest-pinned; upstream has no version tags — bump via
