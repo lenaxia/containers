@@ -35,7 +35,7 @@ RUN --mount=type=cache,target=/nvidia/cache \
           /tmp/nvx/libnvidia-ptxjitcompiler.so.595.71.05 \
           /tmp/nvx/libnvidia-nvvm.so.595.71.05 \
           /tmp/nvx/libnvidia-nvvm70.so.4 \
-    && cp /tmp/nvx/libnvidia-allocator.so.595.71.05 \
+          /tmp/nvx/libnvidia-allocator.so.595.71.05 \
           /tmp/nvx/libnvidia-eglcore.so.595.71.05 \
           /tmp/nvx/libnvidia-glcore.so.595.71.05 \
           /tmp/nvx/libnvidia-glsi.so.595.71.05 \
