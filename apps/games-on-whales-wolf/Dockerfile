@@ -56,7 +56,7 @@ RUN --mount=type=cache,target=/nvidia/cache \
     && ln -s libGLESv1_CM_nvidia.so.595.71.05 libGLESv1_CM_nvidia.so.1 \
     && ln -s libnvidia-egl-gbm.so.1.1.3 libnvidia-egl-gbm.so.1 \
     && ln -s libnvidia-egl-wayland.so.1.1.20 libnvidia-egl-wayland.so.1 \
-    && for f in *.595.71.05; do ln -s "$f" "${f%.595.71.05}.so.1" 2>/dev/null || true; done \
+    && for f in *.595.71.05; do ln -s "$f" "${f%.595.71.05}.1" 2>/dev/null || true; done \
     && ln -sf libnvidia-allocator.so.595.71.05 libnvidia-allocator.so.1
 
 # Base: shrinedogg's wolf multi-user fork (carries wolf#466-era fixes).
