@@ -1,0 +1,17 @@
+schemaVersion: 2.0.0
+
+commandTests:
+  - name: nv71 overlay present
+    command: ls
+    args: ["-l", "/opt/nv71"]
+    expectedOutput:
+      - "libnvidia-allocator.so.1"
+      - "libEGL_nvidia.so.0"
+      - "libnvidia-eglcore.so.1"
+fileExistenceTests:
+  - name: allocator soname resolves to 595.71.05
+    path: "/opt/nv71/libnvidia-allocator.so.595.71.05"
+    shouldExist: true
+  - name: EGL soname is a symlink (not a .91 stray)
+    path: "/opt/nv71/libEGL_nvidia.so.0"
+    shouldExist: true
