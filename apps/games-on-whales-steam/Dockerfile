@@ -64,4 +64,9 @@ RUN --mount=type=cache,target=/nvidia/cache \
 # https://github.com/games-on-whales/steam/pkgs/container/steam
 FROM ghcr.io/games-on-whales/steam@sha256:4f88a5e363c783791fbbe432661d70d6775629fa8c74038b21622477cf20e0ab
 
+# Runtime tooling: curl for the wolf unix-socket API (the base image
+# is Fedora-family). microdnf first (container image), dnf fallback.
+RUN (command -v microdnf >/dev/null && microdnf install -y curl ca-certificates) \
+    || (dnf install -y curl ca-certificates && dnf clean all)
+
 COPY --from=fetch /nv71 /opt/nv71
