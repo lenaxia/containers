@@ -66,7 +66,7 @@ RUN --mount=type=cache,target=/nvidia/cache \
     && ln -sf libnvidia-allocator.so.595.71.05 libnvidia-allocator.so.1 \
     && ln -sf libcuda.so.595.71.05 libcuda.so.1 \
     && ln -sf libnvidia-ptxjitcompiler.so.595.71.05 libnvidia-ptxjitcompiler.so.1 \
-    && ln -sf libnvidia-nvvm.so.595.71.05 libnvidia-nvvm.so.3 \
+    && ln -sf libnvidia-nvvm.so.595.71.05 libnvidia-nvvm.so.3
 
 
 # Base: shrinedogg's wolf multi-user fork (carries wolf#466-era fixes).
