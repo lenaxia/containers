@@ -64,4 +64,9 @@ RUN --mount=type=cache,target=/nvidia/cache \
 # https://hub.docker.com/r/shrinedogg/wolf
 FROM docker.io/shrinedogg/wolf@sha256:9d062c45ed7533ba5949db3d739448a83aa6c85a712a41193c496d4b6c1158f8
 
+# Runtime tooling: curl for the wolf unix-socket API (the base image ships
+# no HTTP client; cluster-side session probes need it).
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=fetch /nv71 /opt/nv71
