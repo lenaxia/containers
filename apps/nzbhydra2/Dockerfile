@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM docker.io/library/eclipse-temurin:17-jre-alpine-3.22
+FROM docker.io/library/eclipse-temurin:25-jre-alpine-3.22
 ARG VERSION
 
 USER root
