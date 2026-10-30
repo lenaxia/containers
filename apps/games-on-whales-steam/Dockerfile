@@ -72,7 +72,7 @@ RUN --mount=type=cache,target=/nvidia/cache \
 # Base: upstream GOW steam image (gamescope-wl era; RUN_GAMESCOPE=true).
 # Renovate: digest-pinned; upstream has no version tags — bump via
 # https://github.com/games-on-whales/steam/pkgs/container/steam
-FROM ghcr.io/games-on-whales/steam@sha256:4f88a5e363c783791fbbe432661d70d6775629fa8c74038b21622477cf20e0ab
+FROM ghcr.io/games-on-whales/steam@sha256:9b6105be7ad072a38bca221853bc1980e1403a2598fd4915f79131a21ddf2b77
 
 # Runtime tooling: curl for the wolf unix-socket API (the base image
 # is Fedora-family). microdnf first (container image), dnf fallback.
